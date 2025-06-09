@@ -1,0 +1,5 @@
+1.trigger for admin_logs
+2.course_resources
+3.resources_view
+4.course_result
+5.student_progress
