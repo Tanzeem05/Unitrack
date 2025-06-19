@@ -90,20 +90,6 @@ router.put('/:submission_id/grade', async (req, res) => {
   const { submission_id } = req.params;
   const { points_earned, feedback, graded_by } = req.body;
 
-  // const { data, error } = await supabase
-  //   .from('Assignment_Submissions')
-  //   .update({
-  //     points_earned,
-  //     feedback,
-  //     graded_by,
-  //     graded_at: new Date().toISOString()
-  //   })
-  //   .eq('submission_id', submission_id)
-  //   .select()
-  //   .single();
-
-  // if (error) return res.status(500).json({ error: error.message });
-
   const query = `
     UPDATE Assignment_Submissions
     SET points_earned = $1, feedback = $2, graded_by = $3, graded_at = NOW()
@@ -133,12 +119,7 @@ router.put('/:submission_id/grade', async (req, res) => {
 // Delete submission
 router.delete('/:submission_id', async (req, res) => {
   const { submission_id } = req.params;
-  // const { error } = await supabase
-  //   .from('Assignment_Submissions')
-  //   .delete()
-  //   .eq('submission_id', submission_id);
 
-  // if (error) return res.status(500).json({ error: error.message });
   const query = 'DELETE FROM Assignment_Submissions WHERE submission_id = $1 RETURNING *';
   const values = [submission_id];
   let data;
@@ -193,7 +174,7 @@ export default router;
 // BEGIN
 //     UPDATE Assignments
 //     SET average_grade = (
-//         SELECT AVG(points_earned)  
+//         SELECT AVG(points_earned)
 //         FROM Assignment_Submissions
 //         WHERE assignment_id = OLD.assignment_id
 //           AND points_earned IS NOT NULL

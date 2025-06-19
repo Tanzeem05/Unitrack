@@ -1,11 +1,11 @@
+// server/supabaseClient.js
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-
 dotenv.config();
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // service_role required for server-side ops
+  process.env.SUPABASE_SERVICE_ROLE_KEY // Use service role to allow upload/delete
 );
 
 export default supabase;
