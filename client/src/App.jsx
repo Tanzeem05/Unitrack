@@ -1,23 +1,19 @@
-import { useEffect, useState } from 'react';
-import { fetchUsers } from './api/users';
+import { Route, Routes, Navigate } from 'react-router-dom';
+import LoginPage from './pages/LoginPage';
+import AdminDashboard from './pages/AdminDashboard';
+import TeacherDashboard from './pages/TeacherDashboard';
+// import StudentDashboard from './pages/StudentDashboard';
+import { useAuth } from './contexts/AuthContext';
 
-function App() {
-  const [users, setUsers] = useState([]);
-
-  useEffect(() => {
-    fetchUsers().then(setUsers);
-  }, []);
+export default function App() {
+  const { user } = useAuth();
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold">Users</h1>
-      <ul>
-        {users.map(user => (
-          <li key={user.user_id}>{user.username}</li>
-        ))}
-      </ul>
-    </div>
+    <Routes>
+      <Route path="/" element={<LoginPage />} />
+      <Route path="/admin" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/" />} />
+      <Route path="/teacher" element={user?.role === 'teacher' ? <TeacherDashboard /> : <Navigate to="/" />} />
+      {/* <Route path="/student" element={user?.role === 'student' ? <StudentDashboard /> : <Navigate to="/" />} /> */}
+    </Routes>
   );
 }
-
-export default App;

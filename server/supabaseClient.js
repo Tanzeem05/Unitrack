@@ -5,7 +5,7 @@ dotenv.config();
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // Use service role to allow upload/delete
+  process.env.SUPABASE_SERVICE_ROLE_KEY 
 );
 
 export default supabase;
