@@ -79,7 +79,11 @@ router.get('/', async (req, res) => {
 
 
 // Get course by ID
+<<<<<<< HEAD
 router.get('/:id', async (req, res) => {
+=======
+router.get('/course/:id', async (req, res) => {
+>>>>>>> master
 
   const { id } = req.params;
   const query = 'SELECT * FROM Courses WHERE course_id = $1';
@@ -99,7 +103,31 @@ router.get('/:id', async (req, res) => {
 
 });
 
+<<<<<<< HEAD
 
+=======
+// GET /course_code/:course_code
+router.get('/course_code/:course_code', async (req, res) => {
+  const { course_code } = req.params;
+  // course_code = decodeURIComponent(course_code);
+
+  const query = `
+    SELECT * FROM Courses 
+    WHERE LOWER(REPLACE(course_code, ' ', '')) = LOWER(REPLACE($1, ' ', ''))
+  `;
+
+  try {
+    const result = await pool.query(query, [course_code]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+>>>>>>> master
 
 
 // Update course
@@ -161,8 +189,61 @@ router.delete('/:id', async (req, res) => {
   res.json({ message: 'Course deleted successfully' });
 });
 
+<<<<<<< HEAD
 export default router;
 
+=======
+
+// Get all current courses for a user
+router.get('/user/:userName/current', async (req, res) => {
+  const { userName } = req.params;
+  const query = `
+    SELECT c.* FROM Courses c
+    JOIN student_enrollment e ON c.course_id = e.course_id
+    join students s ON e.student_id = s.student_id
+    join users u ON s.user_id = u.user_id
+    WHERE u.userName = $1 AND (CURRENT_DATE BETWEEN c.start_date AND c.end_date)
+  `;
+  let data;
+  try {
+    const result = await pool.query(query, [userName]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No current courses found for this user' });
+    }
+    data = result.rows;
+  } catch (err) {
+    console.error('DB error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+  res.json(data);
+});
+
+// Get all completed courses for a user
+router.get('/user/:userName/completed', async (req, res) => {
+  const { userName } = req.params;
+  const query = `
+    SELECT c.* FROM Courses c
+    JOIN student_enrollment e ON c.course_id = e.course_id
+    join students s ON e.student_id = s.student_id
+    join users u ON s.user_id = u.user_id
+    WHERE u.userName = $1 AND (CURRENT_DATE > c.end_date)
+  `;
+  let data;
+  try {
+    const result = await pool.query(query, [userName]);
+    if (result.rows.length === 0) {
+      return res.status(200).json({ error: 'No past courses found for this user' });
+    }
+    data = result.rows;
+  } catch (err) {
+    console.error('DB error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+  res.json(data);
+});
+
+export default router;
+>>>>>>> master
 
 
 // NO need to create assignments and submissions routes here, as they are handled in the assignmentRoutes file.

@@ -11,6 +11,10 @@ import messageRoutes from './routes/messages.js';
 // import announcementRoutes from './routes/announcements.js';
 // import discussionRoutes from './routes/discussions.js';
 // import progressRoutes from './routes/progress.js';
+<<<<<<< HEAD
+=======
+import enrollmentRoutes from './routes/student_enrollment.js';
+>>>>>>> master
 
 dotenv.config();
 
@@ -29,6 +33,10 @@ app.use('/api/messages', messageRoutes);
 // app.use('/api/announcements', announcementRoutes);
 // app.use('/api/discussions', discussionRoutes);
 // app.use('/api/progress', progressRoutes);
+<<<<<<< HEAD
+=======
+app.use('/api/enrollment', enrollmentRoutes);
+>>>>>>> master
 
 app.get('/', (req, res) => res.send('Course Management Backend Running'));
 

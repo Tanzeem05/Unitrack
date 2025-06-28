@@ -92,7 +92,13 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+<<<<<<< HEAD
     const isMatch = await bcrypt.compare(password, user.password);
+=======
+    // const isMatch = await bcrypt.compare(password, user.password);
+    // without bcrypt
+    const isMatch = password === user.password; // Assuming passwords are stored in plain text for this example
+>>>>>>> master
 
 
     if (!isMatch) {
@@ -102,7 +108,11 @@ router.post('/login', async (req, res) => {
     // Optional: Omit password before sending user data back
     delete user.password;
 
+<<<<<<< HEAD
     return res.status(200).json({ message: 'Login successful', user });
+=======
+    return res.status(200).json({ message: 'Login successful', user: user });
+>>>>>>> master
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json({ error: 'Internal server error' });

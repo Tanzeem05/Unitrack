@@ -44,6 +44,34 @@ router.post('/', async (req, res) => {
 });
 
 
+<<<<<<< HEAD
+=======
+// Get all assignments for a course by course_code
+router.get('/course_code/:course_code', async (req, res) => {
+  const { course_code } = req.params;
+  const query = `SELECT a.* FROM Assignments a
+                 JOIN Courses c ON a.course_id = c.course_id
+                  WHERE c.course_code = $1`;
+  const values = [course_code];
+  let data;
+  let error;
+  try {
+    const result = await pool.query(query, values);
+    if (result.rows.length === 0) {
+      return res.status(200).json({ error: 'No assignments found for this course' });
+    }
+    // If the query was successful, extract the data
+    data = result.rows;
+  } catch (err) {
+    console.error('DB error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+
+  res.json(data);
+});
+
+
+>>>>>>> master
 
 // Get all assignments for a course
 router.get('/course/:course_id', async (req, res) => {
