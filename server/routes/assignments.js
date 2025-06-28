@@ -44,8 +44,6 @@ router.post('/', async (req, res) => {
 });
 
 
-<<<<<<< HEAD
-=======
 // Get all assignments for a course by course_code
 router.get('/course_code/:course_code', async (req, res) => {
   const { course_code } = req.params;
@@ -69,9 +67,6 @@ router.get('/course_code/:course_code', async (req, res) => {
 
   res.json(data);
 });
-
-
->>>>>>> master
 
 // Get all assignments for a course
 router.get('/course/:course_id', async (req, res) => {
