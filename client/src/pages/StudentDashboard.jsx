@@ -4,11 +4,13 @@ import Sidebar from '../components/Sidebar';
 import CurrentCourses from './student/CurrentCourses';
 import CompletedCourses from './student/CompletedCourses';
 import CourseDetails from './student/CourseDetails/CourseDetails';
+import Messages from './student/Messages';
 
 export default function StudentDashboard() {
   const navLinks = [
     { to: '/student', label: 'Current Courses' },
     { to: '/student/completed', label: 'Completed Courses' },
+    { to: '/student/messages', label: 'Messages' },
     { to: '/student/announcements', label: 'Global Announcements' }
   ];
 
@@ -21,6 +23,7 @@ export default function StudentDashboard() {
           <Routes>
             <Route index element={<CurrentCourses />} />
             <Route path="completed" element={<CompletedCourses />} />
+            <Route path="messages" element={<Messages />} />
             <Route path="announcements" element={<h1 className="text-2xl font-semibold">Global Announcements</h1>} />
             <Route path="courses/:courseCode/*" element={<CourseDetails />} />
           </Routes>

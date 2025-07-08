@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import TeacherSidebar from './teacher/TeacherSidebar';
 import CoursesPage from './teacher/CoursePage';
 import CourseDetails from './teacher/CourseDetails';
+import Messages from './teacher/Messages';
 import GlobalAnnouncement from './admin/GlobalAnnouncement'; // Assuming this is the correct path for Global Announcements
 
 export default function TeacherDashboard() {
@@ -18,6 +19,8 @@ export default function TeacherDashboard() {
       navigate('/teacher');
     } else if (tab === 'announcements') {
       navigate('/teacher/announcements');
+    } else if (tab === 'messages') {
+      navigate('/teacher/messages');
     }
   };
 
@@ -30,6 +33,7 @@ export default function TeacherDashboard() {
           <Routes>
             <Route index element={<CoursesPage />} />
             <Route path="announcements" element={<GlobalAnnouncement />} />
+            <Route path="messages" element={<Messages />} />
             <Route path="courses/:courseId/*" element={<CourseDetails />} />
           </Routes>
         </div>

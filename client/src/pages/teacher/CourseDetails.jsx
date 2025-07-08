@@ -12,7 +12,6 @@ const tabList = [
   { key: 'submissions', label: 'Submissions' },
   { key: 'announcements', label: 'Announcements' },
   { key: 'discussions', label: 'Discussions' },
-  { key: 'messages', label: 'Messages' },
   { key: 'resources', label: 'Resources' },
 ];
 
@@ -80,7 +79,6 @@ export default function CourseDetails() {
           <Route path="submissions" element={<AssignmentSubmissions />} />
           <Route path="announcements" element={<Announcements courseId={courseId} />} />
           <Route path="discussions" element={<Discussions courseId={courseId} />} />
-          <Route path="messages" element={<h2>Messages</h2>} />
           <Route path="resources" element={<h2>Resources</h2>} />
           <Route path="*" element={<h2>Tab Not Found</h2>} />
         </Routes>

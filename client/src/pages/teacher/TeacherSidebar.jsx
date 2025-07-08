@@ -1,8 +1,9 @@
-import { BookOpen, CheckCircle, Bell, User, LogOut, GraduationCap, X } from 'lucide-react';
+import { BookOpen, CheckCircle, Bell, MessageSquare, User, LogOut, GraduationCap, X } from 'lucide-react';
 
 const TeacherSidebar = ({ isOpen, onClose, activeTab, onTabChange }) => {
   const navItems = [
     { id: 'courses', label: 'My Courses', icon: BookOpen, count: 0 }, // Count can be dynamic
+    { id: 'messages', label: 'Messages', icon: MessageSquare, count: 0 }, // Count can be dynamic
     { id: 'announcements', label: 'Global Announcements', icon: Bell, count: 0 } // Count can be dynamic
   ];
 
