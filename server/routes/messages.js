@@ -3,8 +3,8 @@ import express from 'express';
 import db from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
 
-const router = express.Routeconsole.log('messages.js router loaded');
-r();
+const router = express.Router();
+console.log('messages.js router loaded');
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
@@ -116,11 +116,12 @@ router.get('/conversations', async (req, res) => {
                 WHERE sender_id = $1 OR receiver_id = $1
                 ORDER BY other_user_id, created_at DESC
             )
-            SELECT                 COALESCE(s.batch_year, '') as batch_year,
-me,
+            SELECT 
+                u.username,
+                u.first_name,
                 u.last_name,
                 u.user_type,
-                COALESCE(s.batch_year, 0) as batch_year,
+                COALESCE(s.batch_year::text, '') as batch_year,
                 cu.last_message_time,
                 COALESCE(
                     (SELECT COUNT(*) FROM private_messages 
@@ -136,7 +137,13 @@ me,
         `, [user_id]);
 
         res.json(result.rows);
-    } catc// Get available batch years for filtering
+    } catch (err) {
+        console.error('Error fetching conversations:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get available batch years for filtering
 router.get('/batch-years', async (req, res) => {
     try {
         const result = await db.query(`
@@ -149,12 +156,6 @@ router.get('/batch-years', async (req, res) => {
         res.json(result.rows.map(row => row.batch_year));
     } catch (err) {
         console.error('Error fetching batch years:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-h (err) {
-        console.error('Error fetching conversations:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -195,52 +196,7 @@ router.get('/:otherUsername', async (req, res) => {
             WHERE (pm.sender_id = $1 AND pm.receiver_id = $2) OR 
                   (pm.sender_id = $2 AND pm.receiver_id = $1)
             ORDER BY pm.created_at ASC
-        `, [currentUserId,// Get messages between current user and another user
-router.get('/:otherUsername', async (req, res) => {
-    const { otherUsername } = req.params;
-    const currentUsername = req.user.username;
-    const currentUserId = req.user.user_id;
-
-    try {
-        // Get user ID for the other user
-        const otherUserResult = await db.query('SELECT user_id FROM Users WHERE username = $1', [otherUsername]);
-
-        if (otherUserResult.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const otherUserId = otherUserResult.rows[0].user_id;
-
-        const result = await db.query(`
-            SELECT 
-                pm.message_id,
-                pm.sender_id,
-                pm.receiver_id,
-                pm.message_text as message,
-                pm.created_at as sent_at,
-                pm.read_status,
-                sender.username as sender_username,
-                sender.first_name as sender_first_name,
-                sender.last_name as sender_last_name,
-                receiver.username as receiver_username,
-                receiver.first_name as receiver_first_name,
-                receiver.last_name as receiver_last_name
-            FROM private_messages pm
-            JOIN Users sender ON pm.sender_id = sender.user_id
-            JOIN Users receiver ON pm.receiver_id = receiver.user_id
-            WHERE (pm.sender_id = $1 AND pm.receiver_id = $2) OR 
-                  (pm.sender_id = $2 AND pm.receiver_id = $1)
-            ORDER BY pm.created_at ASC
         `, [currentUserId, otherUserId]);
-
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Error fetching messages:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
- otherUserId]);
 
         res.json(result.rows);
     } catch (err) {
@@ -303,10 +259,10 @@ router.put('/:otherUsername/mark-read', async (req, res) => {
             WHERE receiver_id = $1 AND sender_id = $2 AND read_status = false
             RETURNING *
         `, [currentUserId, otherUserId]);
-// Send a message
-on(result.rows.map(row => row.batch_year));
+
+        res.json({ updated: result.rowCount });
     } catch (err) {
-        console.error('Error fetching batch years:', err);
+        console.error('Error marking messages as read:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -322,6 +278,7 @@ router.put('/:messageId/read', async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Message not found' });
         }
+
         res.json(result.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -339,6 +296,7 @@ router.delete('/:messageId', async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Message not found' });
         }
+
         res.json({ message: 'Message deleted successfully', deletedMessage: result.rows[0] });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -471,6 +429,7 @@ router.put('/:messageId', async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Message not found' });
         }
+
         res.json(result.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
