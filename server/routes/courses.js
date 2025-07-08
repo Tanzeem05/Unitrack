@@ -18,7 +18,7 @@ router.post('/', async (req, res) => {
 
   // Insert new course into the database
   const query = `
-    INSERT INTO Courses (course_code, course_name, description, start_date, end_date, created_by, updated_by)
+    INSERT INTO courses (course_code, course_name, description, start_date, end_date, created_by, updated_by)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *
   `;
@@ -58,7 +58,7 @@ router.post('/', async (req, res) => {
 // Get all courses
 router.get('/', async (req, res) => {
 
-  const query = 'SELECT * FROM Courses';
+  const query = 'SELECT * FROM courses';
   let data;
   let error;
   try {
@@ -83,7 +83,7 @@ router.get('/course/:id', async (req, res) => {
 
 
   const { id } = req.params;
-  const query = 'SELECT * FROM Courses WHERE course_id = $1';
+  const query = 'SELECT * FROM courses WHERE course_id = $1';
   let data;
   let error;
   try {
@@ -102,16 +102,18 @@ router.get('/course/:id', async (req, res) => {
 
 // GET /course_code/:course_code
 router.get('/course_code/:course_code', async (req, res) => {
-  const { course_code } = req.params;
-  // course_code = decodeURIComponent(course_code);
+  const { course_code: encodedCourseCode } = req.params;
+  const decodedCourseCode = decodeURIComponent(encodedCourseCode);
+  console.log(`Fetching course with code: ${decodedCourseCode}`);
 
   const query = `
-    SELECT * FROM Courses 
+    SELECT * FROM courses 
     WHERE LOWER(REPLACE(course_code, ' ', '')) = LOWER(REPLACE($1, ' ', ''))
   `;
 
   try {
-    const result = await pool.query(query, [course_code]);
+    const result = await pool.query(query, [decodedCourseCode]);
+    console.log('Course query result:', result.rows);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Course not found' });
     }
@@ -129,7 +131,7 @@ router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
 
-  const query = `UPDATE Courses  
+  const query = `UPDATE courses  
     SET course_code = $1, course_name = $2, description = $3, start_date = $4, end_date = $5, updated_by = $6
     WHERE course_id = $7 RETURNING *`;
   const values = [
@@ -152,7 +154,7 @@ router.put('/:id', async (req, res) => {
       return res.status(500).json({ error: 'Multiple rows updated, unexpected behavior' });
     }
     // If the query was successful, extract the data
-    data = await pool.query('SELECT * FROM Courses WHERE course_id = $1', [id]);
+    data = await pool.query('SELECT * FROM courses WHERE course_id = $1', [id]);
   }
   catch (err) {
     console.error('DB error:', err);
@@ -169,7 +171,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
 
-  const query = 'DELETE FROM Courses WHERE course_id = $1 RETURNING *';
+  const query = 'DELETE FROM courses WHERE course_id = $1 RETURNING *';
   let error;
   try {
     const result = await pool.query(query, [id]);
@@ -188,7 +190,7 @@ router.delete('/:id', async (req, res) => {
 router.get('/user/:userName/current', async (req, res) => {
   const { userName } = req.params;
   const query = `
-    SELECT c.* FROM Courses c
+    SELECT c.* FROM courses c
     JOIN student_enrollment e ON c.course_id = e.course_id
     join students s ON e.student_id = s.student_id
     join users u ON s.user_id = u.user_id
@@ -212,7 +214,7 @@ router.get('/user/:userName/current', async (req, res) => {
 router.get('/user/:userName/completed', async (req, res) => {
   const { userName } = req.params;
   const query = `
-    SELECT c.* FROM Courses c
+    SELECT c.* FROM courses c
     JOIN student_enrollment e ON c.course_id = e.course_id
     join students s ON e.student_id = s.student_id
     join users u ON s.user_id = u.user_id
@@ -238,10 +240,10 @@ router.get('/teacher/:userName', async (req, res) => {
   console.log(`Fetching courses for teacher: ${userName}`);
 
   const query = `
-    SELECT c.* FROM Courses c
-    JOIN Course_Teachers ct ON c.course_id = ct.course_id
-    JOIN Teachers t ON ct.teacher_id = t.teacher_id
-    JOIN Users u ON t.user_id = u.user_id
+    SELECT c.* FROM courses c
+    JOIN course_teachers ct ON c.course_id = ct.course_id
+    JOIN teachers t ON ct.teacher_id = t.teacher_id
+    JOIN users u ON t.user_id = u.user_id
     WHERE u.userName = $1
   `;
   let data;

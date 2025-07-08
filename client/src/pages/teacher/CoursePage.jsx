@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../utils/api';
@@ -8,6 +8,7 @@ export default function CoursesPage() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -48,12 +49,16 @@ export default function CoursesPage() {
   return (
     <div>
       <h1 className="text-2xl font-semibold mb-4">My Courses</h1>
-      <ul className="space-y-2">
+      <ul className="space-y-4">
         {courses.map(course => (
           <li key={course.course_id}>
-            <Link to={`courses/${course.course_id}`} className="text-blue-400 hover:underline">
-              {course.course_name} ({course.course_code})
-            </Link>
+            <button
+              onClick={() => navigate(`/teacher/courses/${course.course_id}`)}
+              className="block w-full text-left p-4 bg-gray-700 rounded hover:bg-gray-600 transition"
+            >
+              <h3 className="text-lg font-bold">{course.course_code}</h3>
+              <p className="text-gray-300">{course.course_name}</p>
+            </button>
           </li>
         ))}
       </ul>

@@ -87,7 +87,15 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const userQuery = 'SELECT * FROM Users WHERE username = $1';
+    // Get user with student_id if they're a student
+    const userQuery = `
+      SELECT u.*, s.student_id, t.teacher_id, a.admin_id
+      FROM Users u
+      LEFT JOIN Students s ON u.user_id = s.user_id
+      LEFT JOIN Teachers t ON u.user_id = t.user_id  
+      LEFT JOIN Admins a ON u.user_id = a.user_id
+      WHERE u.username = $1
+    `;
     const userResult = await pool.query(userQuery, [username]);
     const user = userResult.rows[0];
 

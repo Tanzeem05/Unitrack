@@ -52,6 +52,19 @@ export default function LoginPage() {
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('username', username);
       
+      // Store student_id if user is a student
+      if (data.user.student_id) {
+        localStorage.setItem('student_id', data.user.student_id);
+      }
+      // Store teacher_id if user is a teacher
+      if (data.user.teacher_id) {
+        localStorage.setItem('teacher_id', data.user.teacher_id);
+      }
+      // Store admin_id if user is an admin
+      if (data.user.admin_id) {
+        localStorage.setItem('admin_id', data.user.admin_id);
+      }
+      
       // Set user in context - make sure the user object has the correct role field
       const userWithRole = {
         ...data.user,

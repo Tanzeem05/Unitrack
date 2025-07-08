@@ -1,24 +1,35 @@
-import { Routes, Route } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
-import Sidebar from '../components/Sidebar';
+import TeacherSidebar from './teacher/TeacherSidebar';
 import CoursesPage from './teacher/CoursePage';
 import CourseDetails from './teacher/CourseDetails';
+import GlobalAnnouncement from './admin/GlobalAnnouncement'; // Assuming this is the correct path for Global Announcements
 
 export default function TeacherDashboard() {
-  const navLinks = [
-    { to: '/teacher', label: 'My Courses' },
-    { to: '/teacher/announcements', label: 'Global Announcements' }
-  ];
+  const [activeTab, setActiveTab] = useState('courses');
+  const navigate = useNavigate();
+
+  
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'courses') {
+      navigate('/teacher');
+    } else if (tab === 'announcements') {
+      navigate('/teacher/announcements');
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex">
-      <Sidebar links={navLinks} title="Teacher Panel" />
-      <main className="flex-1">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-800 text-white flex">
+      <TeacherSidebar activeTab={activeTab} onTabChange={handleTabChange} />
+      <main className="flex-1 ml-72">
         <Header title="Teacher Dashboard" />
         <div className="p-6">
           <Routes>
             <Route index element={<CoursesPage />} />
-            <Route path="announcements" element={<h1 className="text-2xl font-semibold">Global Announcements</h1>} />
+            <Route path="announcements" element={<GlobalAnnouncement />} />
             <Route path="courses/:courseId/*" element={<CourseDetails />} />
           </Routes>
         </div>
