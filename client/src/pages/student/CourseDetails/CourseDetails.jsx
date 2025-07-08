@@ -90,6 +90,7 @@
 import { NavLink, Routes, Route, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Assignments from './Assignments';
+import { api } from '../../../utils/api';
 
 const tabList = [
   { key: '', label: 'Overview' },
@@ -109,8 +110,7 @@ export default function CourseDetails() {
   useEffect(() => {
     const fetchCourse = async () => {
       try {
-        const res = await fetch(`/api/courses/course_code/${courseCode}`);
-        const data = await res.json();
+        const data = await api(`/courses/course_code/${courseCode}`);
         setCourse(data);
       } catch (err) {
         console.error('Failed to fetch course:', err);

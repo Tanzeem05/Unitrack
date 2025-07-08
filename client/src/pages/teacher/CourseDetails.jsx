@@ -1,4 +1,6 @@
 import { NavLink, Routes, Route, useParams } from 'react-router-dom';
+import Assignments from './Assignments';
+import AssignmentSubmissions from './AssignmentSubmissions';
 
 export default function CourseDetails() {
   const { courseId } = useParams();
@@ -11,7 +13,7 @@ export default function CourseDetails() {
         {tabs.map(tab => (
           <NavLink
             key={tab}
-            to={tab}
+            to={`/teacher/courses/${courseId}/${tab}`}
             className={({ isActive }) =>
               isActive ? 'text-blue-400 font-bold' : 'text-gray-300 hover:text-white'
             }
@@ -21,7 +23,8 @@ export default function CourseDetails() {
         ))}
       </nav>
       <Routes>
-        <Route path="assignments" element={<h2>Assignments</h2>} />
+        <Route path="assignments/*" element={<Assignments />} />
+        <Route path="assignments/:assignmentId/submissions" element={<AssignmentSubmissions />} />
         <Route path="announcements" element={<h2>Announcements</h2>} />
         <Route path="discussions" element={<h2>Discussions</h2>} />
         <Route path="messages" element={<h2>Messages</h2>} />

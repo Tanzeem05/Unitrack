@@ -5,7 +5,6 @@ const router = express.Router();
 
 
 // Enroll student to course
-<<<<<<< HEAD
 router.post('/:id/enroll-student', async (req, res) => {
   const { id } = req.params;
   const { student_id } = req.body;
@@ -32,7 +31,6 @@ router.post('/:id/enroll-student', async (req, res) => {
 
   res.json({ message: 'Student enrolled to course' });
 });
-=======
 // router.post('/:id/enroll-student', async (req, res) => {
 //   const { id } = req.params;
 //   const { student_id } = req.body;
@@ -151,4 +149,3 @@ router.get('/:course_code/enrolled-students', async (req, res) => {
 });
 
 export default router;
->>>>>>> master

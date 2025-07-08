@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { api } from '../../utils/api';
 
 export default function CoursesPage() {
   const { user } = useAuth();
@@ -11,8 +12,7 @@ export default function CoursesPage() {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const res = await fetch(`/api/courses/user/${user.username}/current`);
-        const data = await res.json();
+        const data = await api(`/courses/user/${user.username}/current`);
         setCourses(data);
       } catch (err) {
         console.error('Failed to load current courses:', err);

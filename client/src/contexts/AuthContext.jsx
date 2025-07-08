@@ -1,27 +1,3 @@
-<<<<<<< HEAD
-=======
-// import { createContext, useContext, useEffect, useState } from 'react';
-
-// const AuthContext = createContext();
-// export const useAuth = () => useContext(AuthContext);
-
-// export function AuthProvider({ children }) {
-//   const [user, setUser] = useState(null);
-
-//   useEffect(() => {
-//     const storedUser = localStorage.getItem('user');
-//     if (storedUser) setUser(JSON.parse(storedUser));
-//   }, []);
-
-//   return (
-//     <AuthContext.Provider value={{ user, setUser }}>
-//       {children}
-//     </AuthContext.Provider>
-//   );
-// }
-
-
->>>>>>> master
 import { createContext, useContext, useEffect, useState } from 'react';
 
 const AuthContext = createContext();
@@ -29,20 +5,6 @@ export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-<<<<<<< HEAD
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) setUser(JSON.parse(storedUser));
-  }, []);
-
-  return (
-    <AuthContext.Provider value={{ user, setUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-=======
   const [isLoading, setIsLoading] = useState(true); // NEW
 
   useEffect(() => {
@@ -67,4 +29,3 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
->>>>>>> master

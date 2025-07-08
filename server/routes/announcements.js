@@ -23,10 +23,7 @@ router.post('/:created_by', async (req, res) => {
 router.get('/course/:course_id/:student_id', async (req, res) => {
   const { course_id, student_id } = req.params;
 
-<<<<<<< HEAD
-=======
   
->>>>>>> master
   try {
     const result = await db.query(
       `SELECT a.*, 

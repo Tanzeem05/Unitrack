@@ -2,6 +2,8 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import pool from '../db.js';
+import jwt from 'jsonwebtoken';
+
 
 const router = express.Router();
 
@@ -46,12 +48,13 @@ router.post('/signup', async (req, res) => {
   }
 
   // Insert new user into the database
+  let user;
   try {
     const result = await pool.query(
       'INSERT INTO users (username, password, email, first_name, last_name, user_type) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [username, hashedPassword, email, first_name, last_name, user_type]
     );
-    const user = result.rows[0];
+    user = result.rows[0];
   } catch (err) {
     console.error('DB error:', err);
     return res.status(500).json({ error: 'Internal server error' });
@@ -66,7 +69,7 @@ router.post('/signup', async (req, res) => {
 
   // Insert into role-specific table
   const roleInsertQuery = `INSERT INTO ${roleTable} (user_id) VALUES ($1)`;
-  const roleInsertResult = await pool.query(roleInsertQuery, [users.user_id]);
+  const roleInsertResult = await pool.query(roleInsertQuery, [user.user_id]);
   if (roleInsertResult.rowCount === 0) {
     return res.status(500).json({ error: 'Failed to assign role' });
   }
@@ -88,31 +91,27 @@ router.post('/login', async (req, res) => {
     const userResult = await pool.query(userQuery, [username]);
     const user = userResult.rows[0];
 
+    console.log('User found:', user);
     if (!user || !user.password) {
+      console.log('User or password not found');
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-<<<<<<< HEAD
-    const isMatch = await bcrypt.compare(password, user.password);
-=======
-    // const isMatch = await bcrypt.compare(password, user.password);
-    // without bcrypt
-    const isMatch = password === user.password; // Assuming passwords are stored in plain text for this example
->>>>>>> master
-
+    const isMatch = await bcrypt.compare(password, user.password); 
+    console.log('Password match result:', isMatch);
 
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid password or username' });
+      console.log('Password does not match');
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    // Issue a JWT that includes the user ID
+    const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     // Optional: Omit password before sending user data back
     delete user.password;
 
-<<<<<<< HEAD
-    return res.status(200).json({ message: 'Login successful', user });
-=======
-    return res.status(200).json({ message: 'Login successful', user: user });
->>>>>>> master
+    return res.status(200).json({ message: 'Login successful', user: user, token });
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json({ error: 'Internal server error' });
