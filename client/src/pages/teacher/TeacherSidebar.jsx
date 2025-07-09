@@ -1,9 +1,9 @@
 import { BookOpen, CheckCircle, Bell, MessageSquare, User, LogOut, GraduationCap, X } from 'lucide-react';
 
-const TeacherSidebar = ({ isOpen, onClose, activeTab, onTabChange }) => {
+const TeacherSidebar = ({ isOpen, onClose, activeTab, onTabChange, unreadCount = 0 }) => {
   const navItems = [
     { id: 'courses', label: 'My Courses', icon: BookOpen, count: 0 }, // Count can be dynamic
-    { id: 'messages', label: 'Messages', icon: MessageSquare, count: 0 }, // Count can be dynamic
+    { id: 'messages', label: 'Messages', icon: MessageSquare, count: unreadCount }, // Dynamic unread count
     { id: 'announcements', label: 'Global Announcements', icon: Bell, count: 0 } // Count can be dynamic
   ];
 
@@ -56,9 +56,8 @@ const TeacherSidebar = ({ isOpen, onClose, activeTab, onTabChange }) => {
                   <span className="font-medium">{item.label}</span>
                 </div>
                 {item.count > 0 && (
-                  <span className={`text-xs px-2 py-1 rounded-full ${activeTab === item.id ? 'bg-purple-600' : 'bg-purple-700 group-hover:bg-purple-600'
-                    }`}>
-                    {item.count}
+                  <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[1.5rem] text-center">
+                    {item.count > 99 ? '99+' : item.count}
                   </span>
                 )}
               </button>

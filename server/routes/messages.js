@@ -81,6 +81,22 @@ router.get('/search-users', async (req, res) => {
     }
 });
 
+// Get total unread message count for authenticated user
+router.get('/unread-count', async (req, res) => {
+    const user_id = req.user.user_id;
+
+    try {
+        const result = await db.query(
+            'SELECT COUNT(*) FROM private_messages WHERE receiver_id = $1 AND read_status = false',
+            [user_id]
+        );
+        res.json({ unreadCount: parseInt(result.rows[0].count, 10) });
+    } catch (err) {
+        console.error('Error fetching unread count:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Get all conversations for a user
 router.get('/conversations', async (req, res) => {
     const user_id = req.user.user_id;

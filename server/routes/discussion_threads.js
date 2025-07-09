@@ -71,17 +71,3 @@ router.delete('/:thread_id', async (req, res) => {
 
 
 export default router;
-
-// trigger needed: *Ensure discussion_posts.thread_id is ON DELETE CASCADE or handle separately.
-// CREATE OR REPLACE FUNCTION delete_posts_of_thread()
-// RETURNS TRIGGER AS $$
-// BEGIN
-//   DELETE FROM discussion_posts WHERE thread_id = OLD.thread_id;
-//   RETURN OLD;
-// END;
-// $$ LANGUAGE plpgsql;
-// Create a post in a discussion thread
-// CREATE TRIGGER trigger_delete_thread_posts
-// AFTER DELETE ON discussion_threads
-// FOR EACH ROW
-// EXECUTE FUNCTION delete_posts_of_thread();

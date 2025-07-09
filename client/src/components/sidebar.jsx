@@ -9,19 +9,24 @@ export default function Sidebar({ links = [], title = "Navigation" }) {
         </span>
       </h2>
       <nav className="flex flex-col gap-4">
-        {links.map(({ to, label }) => (
+        {links.map(({ to, label, badge }) => (
           <NavLink
             key={to}
             to={to}
             className={({ isActive }) =>
-              `px-4 py-2 rounded-lg transition-all duration-200 ${
+              `px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-between ${
                 isActive
                   ? 'bg-purple-700 text-white shadow-lg transform scale-105'
                   : 'text-purple-200 hover:bg-purple-800/50 hover:text-white'
               }`
             }
           >
-            {label}
+            <span>{label}</span>
+            {badge && badge > 0 && (
+              <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[1.5rem] text-center">
+                {badge > 99 ? '99+' : badge}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

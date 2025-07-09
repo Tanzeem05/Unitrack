@@ -122,21 +122,6 @@ router.delete('/:post_id', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-//trigger needed to delete all the replies to that post
-
-//Use a trigger to cascade delete replies
-// CREATE OR REPLACE FUNCTION delete_post_replies()
-// RETURNS TRIGGER AS $$
-// BEGIN
-//   DELETE FROM discussion_posts WHERE reply_to_post_id = OLD.post_id;
-//   RETURN OLD;
-// END;
-// $$ LANGUAGE plpgsql;
-
-// CREATE TRIGGER cascade_delete_replies
-// AFTER DELETE ON discussion_posts
-// FOR EACH ROW
-// EXECUTE FUNCTION delete_post_replies();
 
 
 export default router;

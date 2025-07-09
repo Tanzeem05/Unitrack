@@ -24,3 +24,8 @@ export const api = async (url, method = 'GET', body, isFormData = false) => {
   if (!res.ok) throw new Error(data.error);
   return data;
 };
+
+// Get total unread message count for authenticated user
+export const getUnreadMessageCount = async () => {
+  return await api('/messages/unread-count');
+};

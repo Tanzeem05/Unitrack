@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../utils/api';
 
-export default function Messages() {
+export default function Messages({ onUnreadCountChange }) {
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [currentConversation, setCurrentConversation] = useState(null);
@@ -20,7 +20,20 @@ export default function Messages() {
   useEffect(() => {
     fetchConversations();
     fetchBatchYears();
+    // Refresh unread count when Messages component mounts
+    if (onUnreadCountChange) {
+      setTimeout(() => {
+        onUnreadCountChange();
+      }, 100);
+    }
   }, []);
+
+  // Reset batch year filter when user type changes
+  useEffect(() => {
+    if (userTypeFilter !== 'student') {
+      setBatchYearFilter('all');
+    }
+  }, [userTypeFilter]);
 
   // Fetch messages when conversation changes
   useEffect(() => {
@@ -53,6 +66,14 @@ export default function Messages() {
       setMessages(response);
       // Mark messages as read
       await api(`/messages/${username}/mark-read`, 'PUT');
+      // Refresh conversation list to update unread counts
+      fetchConversations();
+      // Refresh unread count in parent after marking as read with small delay
+      if (onUnreadCountChange) {
+        setTimeout(() => {
+          onUnreadCountChange();
+        }, 100);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -83,8 +104,21 @@ export default function Messages() {
       setNewMessage('');
       fetchMessages(currentConversation.username);
       fetchConversations(); // Refresh conversation list
+      if (onUnreadCountChange) {
+        onUnreadCountChange(); // Refresh unread count in parent
+      }
     } catch (error) {
       console.error('Error sending message:', error);
+    }
+  };
+
+  const selectConversation = (conversation) => {
+    setCurrentConversation(conversation);
+    // Refresh unread count immediately when selecting conversation
+    if (onUnreadCountChange) {
+      setTimeout(() => {
+        onUnreadCountChange();
+      }, 200);
     }
   };
 
@@ -93,6 +127,12 @@ export default function Messages() {
     setShowUserSearch(false);
     setSearchQuery('');
     setUserSuggestions([]);
+    // Refresh unread count immediately when starting conversation
+    if (onUnreadCountChange) {
+      setTimeout(() => {
+        onUnreadCountChange();
+      }, 200);
+    }
   };
 
   const formatTime = (timestamp) => {
@@ -143,7 +183,8 @@ export default function Messages() {
                 <select
                   value={batchYearFilter}
                   onChange={(e) => setBatchYearFilter(e.target.value)}
-                  className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm flex-1"
+                  disabled={userTypeFilter !== 'student'}
+                  className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="all">All Years</option>
                   {batchYears.map(year => (
@@ -193,7 +234,7 @@ export default function Messages() {
           {conversations.map(conversation => (
             <div
               key={conversation.username}
-              onClick={() => setCurrentConversation(conversation)}
+              onClick={() => selectConversation(conversation)}
               className={`p-4 border-b border-slate-700 cursor-pointer hover:bg-slate-700 transition-colors ${
                 currentConversation?.username === conversation.username ? 'bg-slate-700' : ''
               }`}

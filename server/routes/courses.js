@@ -194,7 +194,7 @@ router.get('/user/:userName/current', async (req, res) => {
     JOIN student_enrollment e ON c.course_id = e.course_id
     join students s ON e.student_id = s.student_id
     join users u ON s.user_id = u.user_id
-    WHERE u.userName = $1 AND (CURRENT_DATE BETWEEN c.start_date AND c.end_date)
+    WHERE u.username = $1 AND (CURRENT_DATE BETWEEN c.start_date AND c.end_date)
   `;
   let data;
   try {
@@ -218,7 +218,7 @@ router.get('/user/:userName/completed', async (req, res) => {
     JOIN student_enrollment e ON c.course_id = e.course_id
     join students s ON e.student_id = s.student_id
     join users u ON s.user_id = u.user_id
-    WHERE u.userName = $1 AND (CURRENT_DATE > c.end_date)
+    WHERE u.username = $1 AND (CURRENT_DATE > c.end_date)
   `;
   let data;
   try {
@@ -239,98 +239,78 @@ router.get('/teacher/:userName', async (req, res) => {
   const { userName } = req.params;
   console.log(`Fetching courses for teacher: ${userName}`);
 
-  const query = `
-    SELECT c.* FROM courses c
-    JOIN course_teachers ct ON c.course_id = ct.course_id
-    JOIN teachers t ON ct.teacher_id = t.teacher_id
-    JOIN users u ON t.user_id = u.user_id
-    WHERE u.userName = $1
+  // First, let's check if the teacher exists
+  const teacherCheckQuery = `
+    SELECT u.username, u.user_id, t.teacher_id 
+    FROM users u 
+    JOIN teachers t ON u.user_id = t.user_id 
+    WHERE u.username = $1
   `;
-  let data;
+  
   try {
+    const teacherCheck = await pool.query(teacherCheckQuery, [userName]);
+    console.log(`Teacher check result:`, teacherCheck.rows);
+    
+    if (teacherCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Teacher not found' });
+    }
+    
+    const query = `
+      SELECT c.* FROM courses c
+      JOIN course_teachers ct ON c.course_id = ct.course_id
+      JOIN teachers t ON ct.teacher_id = t.teacher_id
+      JOIN users u ON t.user_id = u.user_id
+      WHERE u.username = $1
+    `;
+    
     const result = await pool.query(query, [userName]);
     console.log(`Query result for ${userName}:`, result.rows);
+    
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'No courses found for this teacher' });
     }
-    data = result.rows;
+    
+    res.json(result.rows);
   } catch (err) {
     console.error('DB error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
-  res.json(data);
+});
+
+// Debug route to see all teachers
+console.log('Registering /debug/teachers route');
+console.log('Registering /debug/teachers route');
+router.get('/debug/teachers', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT u.username, u.user_id, t.teacher_id, t.specialization 
+      FROM users u 
+      JOIN teachers t ON u.user_id = t.user_id
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Debug route to see all course assignments
+router.get('/debug/course-teachers', async (req, res) => {
+  console.log('Accessing /debug/course-teachers route');
+  console.log('Accessing /debug/course-teachers route');
+  try {
+    const result = await pool.query(`
+      SELECT c.course_name, c.course_code, u.username, t.teacher_id
+      FROM courses c
+      JOIN course_teachers ct ON c.course_id = ct.course_id
+      JOIN teachers t ON ct.teacher_id = t.teacher_id
+      JOIN users u ON t.user_id = u.user_id
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;
-
-
-// NO need to create assignments and submissions routes here, as they are handled in the assignmentRoutes file.
-
-// // Create assignment
-// router.post('/:id/assignments', async (req, res) => {
-//   const { id } = req.params;
-//   const {
-//     title,
-//     description,
-//     due_date,
-//     max_points,
-//     weight_percentage,
-//     created_by
-//   } = req.body;
-
-//   const { data, error } = await supabase.from('Assignments').insert([
-//     {
-//       course_id: id,
-//       title,
-//       description,
-//       due_date,
-//       max_points,
-//       weight_percentage,
-//       created_by
-//     }
-//   ]).select();
-
-//   if (error) return res.status(500).json({ error: error.message });
-//   res.status(201).json({ message: 'Assignment created', assignment: data[0] });
-// });
-
-
-
-// // Get assignments for a course
-// router.get('/:id/assignments', async (req, res) => {
-//   const { id } = req.params;
-//   const { data, error } = await supabase.from('Assignments').select('*').eq('course_id', id);
-//   if (error) return res.status(500).json({ error: error.message });
-//   res.json(data);
-// });
-
-
-
-// // Submit assignment
-// router.post('/:courseId/assignments/:assignmentId/submit', async (req, res) => {
-//   const { assignmentId } = req.params;
-//   const { student_id, points_earned, feedback, graded_by } = req.body;
-
-//   const { data, error } = await supabase.from('Assignment_Submissions').insert([
-//     {
-//       assignment_id: assignmentId,
-//       student_id,
-//       points_earned,
-//       feedback,
-//       graded_by
-//     }
-//   ]).select();
-
-//   if (error) return res.status(500).json({ error: error.message });
-//   res.status(201).json({ message: 'Assignment submitted', submission: data[0] });
-// });
-
-// // Get all submissions for an assignment
-// router.get('/:courseId/assignments/:assignmentId/submissions', async (req, res) => {
-//   const { assignmentId } = req.params;
-//   const { data, error } = await supabase.from('Assignment_Submissions').select('*').eq('assignment_id', assignmentId);
-//   if (error) return res.status(500).json({ error: error.message });
-//   res.json(data);
-// });
-
-
