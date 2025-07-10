@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import Assignments from './Assignments';
 import Announcements from './Announcements';
 import Discussions from './Discussions';
+import Resources from './Resources';
 import { api } from '../../../utils/api';
 
 const tabList = [
@@ -14,7 +15,6 @@ const tabList = [
   { key: 'announcements', label: 'Announcements' },
   { key: 'discussions', label: 'Discussions' },
   { key: 'resources', label: 'Resources' },
-  { key: 'results', label: 'Results' },
 ];
 
 export default function CourseDetails() {
@@ -80,8 +80,7 @@ export default function CourseDetails() {
           <Route path="assignments" element={<Assignments courseCode={course.course_code} />} />
           <Route path="announcements" element={<Announcements courseCode={course.course_code} />} />
           <Route path="discussions" element={<Discussions courseCode={course.course_code} />} />
-          <Route path="resources" element={<h2>Resources content here</h2>} />
-          <Route path="results" element={<h2>Results content here</h2>} />
+          <Route path="resources" element={<Resources courseId={course.course_id} />} />
           <Route path="*" element={<h2>Tab Not Found</h2>} />
         </Routes>
       </div>

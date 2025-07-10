@@ -1,9 +1,10 @@
 import { NavLink, Routes, Route, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Assignments from './Assignments';
-import AssignmentSubmissions from './AssignmentSubmissions';
+import Submissions from './Submissions';
 import Announcements from './Announcements';
 import Discussions from './Discussions';
+import Resources from './Resources';
 import { api } from '../../utils/api';
 
 const tabList = [
@@ -76,10 +77,10 @@ export default function CourseDetails() {
             }
           />
           <Route path="assignments/*" element={<Assignments courseId={courseId} />} />
-          <Route path="submissions" element={<AssignmentSubmissions />} />
+          <Route path="submissions" element={<Submissions />} />
           <Route path="announcements" element={<Announcements courseId={courseId} />} />
           <Route path="discussions" element={<Discussions courseId={courseId} />} />
-          <Route path="resources" element={<h2>Resources</h2>} />
+          <Route path="resources" element={<Resources courseId={courseId} />} />
           <Route path="*" element={<h2>Tab Not Found</h2>} />
         </Routes>
       </div>

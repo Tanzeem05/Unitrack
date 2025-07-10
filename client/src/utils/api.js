@@ -1,6 +1,17 @@
 const BASE_URL = 'http://localhost:5000/api';
 
-export const api = async (url, method = 'GET', body, isFormData = false) => {
+export const api = async (url, method = 'GET', body = null, isFormData = false) => {
+  // Validate parameters
+  if (typeof url !== 'string') {
+    throw new Error(`URL must be a string, got ${typeof url}: ${url}`);
+  }
+  
+  if (typeof method !== 'string') {
+    console.error('Invalid method type:', typeof method, method);
+    console.error('All parameters:', { url, method, body, isFormData });
+    throw new Error(`Method must be a string, got ${typeof method}: ${method}`);
+  }
+  
   const fullUrl = `${BASE_URL}${url}`;
   const token = localStorage.getItem('token');
 
@@ -10,18 +21,19 @@ export const api = async (url, method = 'GET', body, isFormData = false) => {
   }
 
   let requestBody = body;
-  if (!isFormData) {
+  if (body && !isFormData) {
     headers['Content-Type'] = 'application/json';
     requestBody = JSON.stringify(body);
   }
 
   const res = await fetch(fullUrl, {
-    method,
+    method: method.toUpperCase(),
     headers,
     ...(body && { body: requestBody })
   });
+  
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error);
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 };
 

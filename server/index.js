@@ -14,6 +14,7 @@ import discussionRoutes from './routes/discussions.js';
 import enrollmentRoutes from './routes/student_enrollment.js';
 import courseTeachersRoutes from './routes/course_teachers.js';
 import submissionRoutes from './routes/submissions.js';
+import courseResourceRoutes from './routes/course_resources.js';
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use('/api/discussions', discussionRoutes);
 app.use('/api/enrollment', enrollmentRoutes);
 app.use('/api/course-teachers', courseTeachersRoutes);
 app.use('/api/submissions', submissionRoutes);
+app.use('/api/resources', courseResourceRoutes);
 
 app.get('/', (req, res) => res.send('Course Management Backend Running'));
 

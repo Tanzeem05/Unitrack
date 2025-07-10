@@ -20,7 +20,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LoginPage />} />
-      <Route path="/admin" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/" />} />
+      <Route path="/admin/*" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/" />} />
       <Route path="/teacher/*" element={user?.role === 'teacher' ? <TeacherDashboard /> : <Navigate to="/" />} />
       <Route path="/student/*" element={user?.role === 'student' ? <StudentDashboard /> : <Navigate to="/" />} />
     </Routes>

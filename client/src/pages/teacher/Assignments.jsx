@@ -52,42 +52,111 @@ export default function Assignments() {
     }));
   };
 
+  // const handleSubmit = async e => {
+  //   e.preventDefault();
+  //   if (!user || !user.user_id) {
+  //     setError('User not authenticated.');
+  //     return;
+  //   }
+
+  //   const formData = new FormData();
+  //   formData.append('course_id', courseId);
+  //   formData.append('title', newAssignment.title);
+  //   formData.append('description', newAssignment.description);
+  //   formData.append('due_date', newAssignment.due_date);
+  //   formData.append('max_points', newAssignment.max_points);
+  //   formData.append('weight_percentage', newAssignment.weight_percentage);
+  //   formData.append('created_by', user.user_id);
+  //   if (newAssignment.assignmentFile) {
+  //     formData.append('assignmentFile', newAssignment.assignmentFile);
+  //   }
+
+  //   try {
+  //     const response = await api(`/`, { method: 'POST', body: formData, isFormData: true });
+  //     setAssignments(prev => [...prev, response.assignment]);
+  //     setNewAssignment({
+  //       title: '',
+  //       description: '',
+  //       due_date: '',
+  //       max_points: '',
+  //       weight_percentage: '',
+  //       assignmentFile: null,
+  //     });
+  //     setShowCreateForm(false);
+  //   } catch (err) {
+  //     console.error('Failed to create assignment:', err);
+  //     setError('Failed to create assignment.');
+  //   }
+  // };
+
   const handleSubmit = async e => {
-    e.preventDefault();
-    if (!user || !user.user_id) {
-      setError('User not authenticated.');
-      return;
-    }
+  e.preventDefault();
+  
+  // Debug: Check user and course data
+  console.log('Current user:', user);
+  console.log('Course ID from URL:', courseId);
+  console.log('User ID:', user?.user_id || user?.id);
+  
+  // Validate user authentication
+  if (!user || (!user.user_id && !user.id)) {
+    setError('User not authenticated properly.');
+    return;
+  }
 
-    const formData = new FormData();
-    formData.append('course_id', courseId);
-    formData.append('title', newAssignment.title);
-    formData.append('description', newAssignment.description);
-    formData.append('due_date', newAssignment.due_date);
-    formData.append('max_points', newAssignment.max_points);
-    formData.append('weight_percentage', newAssignment.weight_percentage);
-    formData.append('created_by', user.user_id);
-    if (newAssignment.assignmentFile) {
-      formData.append('assignmentFile', newAssignment.assignmentFile);
-    }
+  // Validate course ID
+  if (!courseId || isNaN(courseId)) {
+    setError('Invalid course ID.');
+    return;
+  }
 
-    try {
-      const response = await api(`/assignments`, { method: 'POST', body: formData, isFormData: true });
-      setAssignments(prev => [...prev, response.assignment]);
-      setNewAssignment({
-        title: '',
-        description: '',
-        due_date: '',
-        max_points: '',
-        weight_percentage: '',
-        assignmentFile: null,
-      });
-      setShowCreateForm(false);
-    } catch (err) {
-      console.error('Failed to create assignment:', err);
-      setError('Failed to create assignment.');
-    }
-  };
+  // Validate required fields
+  if (!newAssignment.title || !newAssignment.due_date || !newAssignment.max_points || !newAssignment.weight_percentage) {
+    setError('Please fill in all required fields.');
+    return;
+  }
+
+  // Format the date properly for PostgreSQL
+  const formattedDate = new Date(newAssignment.due_date).toISOString();
+
+  const formData = new FormData();
+  formData.append('course_id', parseInt(courseId)); // Ensure it's an integer
+  formData.append('title', newAssignment.title);
+  formData.append('description', newAssignment.description);
+  formData.append('due_date', formattedDate);
+  formData.append('max_points', parseInt(newAssignment.max_points));
+  formData.append('weight_percentage', parseFloat(newAssignment.weight_percentage));
+  // Remove created_by - it will come from authenticated user
+  
+  if (newAssignment.assignmentFile) {
+    formData.append('assignmentFile', newAssignment.assignmentFile);
+  }
+
+  // Debug: Log what we're sending
+  console.log('Form data being sent:');
+  for (let [key, value] of formData.entries()) {
+    console.log(key, ':', value);
+  }
+
+  try {
+    const response = await api('/assignments/', 'POST', formData, true);
+    console.log('Server response:', response);
+    
+    setAssignments(prev => [...prev, response.assignment]);
+    setNewAssignment({
+      title: '',
+      description: '',
+      due_date: '',
+      max_points: '',
+      weight_percentage: '',
+      assignmentFile: null,
+    });
+    setShowCreateForm(false);
+    setError(null);
+  } catch (err) {
+    console.error('Failed to create assignment:', err);
+    setError(`Failed to create assignment: ${err.message}`);
+  }
+};
 
   if (loading) {
     return <p className="p-4">Loading assignments...</p>;
