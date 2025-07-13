@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../../../utils/api';
 
 export default function Assignments({ courseCode }) {
+  const location = useLocation();
   const [assignments, setAssignments] = useState([]);
   const [submissions, setSubmissions] = useState({}); // Store submissions by assignment ID
   const [files, setFiles] = useState({}); // Store files by assignment ID
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState({}); // Track submitting state by assignment ID
   const [error, setError] = useState(null);
+  const [highlightedAssignment, setHighlightedAssignment] = useState(null);
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -51,6 +54,37 @@ export default function Assignments({ courseCode }) {
       fetchAssignments();
     }
   }, [courseCode]);
+
+  // Handle assignment highlighting from query parameter
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const assignmentId = searchParams.get('assignmentId');
+    
+    if (assignmentId && assignments.length > 0) {
+      const assignmentIdNum = parseInt(assignmentId);
+      const assignment = assignments.find(a => a.assignment_id === assignmentIdNum);
+      
+      if (assignment) {
+        setHighlightedAssignment(assignmentIdNum);
+        
+        // Scroll to the assignment after a small delay to ensure rendering
+        setTimeout(() => {
+          const element = document.getElementById(`assignment-${assignmentIdNum}`);
+          if (element) {
+            element.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            });
+          }
+        }, 300);
+        
+        // Clear highlight after 3 seconds
+        setTimeout(() => {
+          setHighlightedAssignment(null);
+        }, 3000);
+      }
+    }
+  }, [location.search, assignments]);
 
   const handleFileChange = (assignmentId, file) => {
     setFiles(prev => ({
@@ -143,9 +177,20 @@ export default function Assignments({ courseCode }) {
         const submission = submissions[assignment.assignment_id];
         const overdue = isOverdue(assignment.due_date);
         const isSubmitting = submitting[assignment.assignment_id];
+        const isHighlighted = highlightedAssignment === assignment.assignment_id;
         
         return (
-          <div key={assignment.assignment_id} className="bg-gray-800 rounded-lg p-6 shadow-lg">
+          <div 
+            key={assignment.assignment_id} 
+            id={`assignment-${assignment.assignment_id}`}
+            className={`
+              bg-gray-800 rounded-lg p-6 shadow-lg transition-all duration-500
+              ${isHighlighted 
+                ? 'transform scale-105 ring-4 ring-blue-400 ring-opacity-50 bg-blue-900/20' 
+                : ''
+              }
+            `}
+          >
             <div className="flex justify-between items-start mb-4">
               <div className="flex-1">
                 <h3 className="text-xl font-semibold text-white mb-2">{assignment.title}</h3>

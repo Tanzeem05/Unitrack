@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
 import Modal from './components/Modal';
 
@@ -14,14 +14,6 @@ const CourseManagement = () => {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalCourses: 0,
-    limit: 10,
-    hasNext: false,
-    hasPrev: false
-  });
   const [formData, setFormData] = useState({
     course_code: '',
     course_name: '',
@@ -33,94 +25,18 @@ const CourseManagement = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // Test the connection first
-    testConnection();
-    fetchCourses(1); // Always start with page 1 on initial load
+    fetchCourses();
     fetchTeachers();
   }, []);
 
-  const testConnection = async () => {
-    try {
-      const testResult = await api('/admin/test');
-      console.log('Connection test:', testResult);
-      
-      // Test the specific admin courses endpoint
-      try {
-        const adminCourses = await api('/admin/courses?page=1&limit=5');
-        console.log('Admin courses endpoint result:', adminCourses);
-        console.log('Admin courses type:', typeof adminCourses);
-        console.log('Admin courses is array:', Array.isArray(adminCourses));
-      } catch (adminErr) {
-        console.error('Admin courses test failed:', adminErr);
-      }
-      
-      // Test the regular courses endpoint for comparison
-      try {
-        const regularCourses = await api('/courses');
-        console.log('Regular courses endpoint result:', regularCourses);
-        console.log('Regular courses type:', typeof regularCourses);
-        console.log('Regular courses is array:', Array.isArray(regularCourses));
-      } catch (regularErr) {
-        console.error('Regular courses test failed:', regularErr);
-      }
-      
-    } catch (err) {
-      console.error('Connection test failed:', err);
-    }
-  };
-
-  const fetchCourses = async (page = 1) => {
+  const fetchCourses = async () => {
     try {
       setLoading(true);
-      const data = await api(`/admin/courses?page=${page}&limit=10`);
-      
-      console.log('API Response:', data);
-      console.log('Type of data:', typeof data);
-      console.log('Is array:', Array.isArray(data));
-      
-      // Handle both old and new response formats
-      if (Array.isArray(data)) {
-        // Old format - direct array response
-        console.log('Using old format (direct array)');
-        setCourses(data);
-        setPagination({
-          currentPage: 1,
-          totalPages: 1,
-          totalCourses: data.length,
-          limit: 10,
-          hasNext: false,
-          hasPrev: false
-        });
-      } else if (data && data.courses) {
-        // New format - object with courses and pagination
-        console.log('Using new format (paginated object)');
-        console.log('Courses received:', data.courses);
-        console.log('Pagination received:', data.pagination);
-        setCourses(data.courses || []);
-        setPagination(data.pagination || {
-          currentPage: 1,
-          totalPages: 1,
-          totalCourses: 0,
-          limit: 10,
-          hasNext: false,
-          hasPrev: false
-        });
-      } else {
-        console.log('Unexpected data format:', data);
-        setCourses([]);
-        setPagination({
-          currentPage: 1,
-          totalPages: 1,
-          totalCourses: 0,
-          limit: 10,
-          hasNext: false,
-          hasPrev: false
-        });
-      }
+      const data = await api('/admin/courses');
+      setCourses(data);
     } catch (err) {
       console.error('Error fetching courses:', err);
       setError('Failed to load courses');
-      setCourses([]); // Ensure courses is always an array even on error
     } finally {
       setLoading(false);
     }
@@ -166,11 +82,7 @@ const CourseManagement = () => {
     try {
       setSubmitting(true);
       const newCourse = await api('/admin/courses', 'POST', formData);
-      
-      // Reset to first page and refresh the courses list
-      setPagination(prev => ({ ...prev, currentPage: 1 }));
-      await fetchCourses(1);
-      
+      setCourses([newCourse, ...courses]);
       setShowCreateModal(false);
       resetForm();
     } catch (err) {
@@ -189,10 +101,9 @@ const CourseManagement = () => {
     try {
       setSubmitting(true);
       const updatedCourse = await api(`/admin/courses/${selectedCourse.course_id}`, 'PUT', formData);
-      
-      // Refresh the current page to show updated data
-      await fetchCourses(pagination.currentPage || 1);
-      
+      setCourses(courses.map(course => 
+        course.course_id === selectedCourse.course_id ? updatedCourse : course
+      ));
       setShowEditModal(false);
       resetForm();
     } catch (err) {
@@ -207,17 +118,7 @@ const CourseManagement = () => {
     try {
       setSubmitting(true);
       await api(`/admin/courses/${selectedCourse.course_id}`, 'DELETE');
-      
-      // If current page becomes empty after deletion, go to previous page
-      const remainingCourses = (courses || []).length - 1;
-      const currentPage = pagination.currentPage || 1;
-      
-      if (remainingCourses === 0 && currentPage > 1) {
-        await fetchCourses(currentPage - 1);
-      } else {
-        await fetchCourses(currentPage);
-      }
-      
+      setCourses(courses.filter(course => course.course_id !== selectedCourse.course_id));
       setShowDeleteModal(false);
       setSelectedCourse(null);
     } catch (err) {
@@ -258,21 +159,14 @@ const CourseManagement = () => {
     setShowDeleteModal(true);
   };
 
-  const filteredCourses = (courses || []).filter(course => {
-    // Defensive programming: handle undefined properties
-    const courseName = course.course_name || '';
-    const courseCode = course.course_code || '';
-    const courseStatus = course.status || 'unknown';
-    
-    const matchesSearch = courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         courseCode.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || courseStatus.toLowerCase() === statusFilter.toLowerCase();
+  const filteredCourses = courses.filter(course => {
+    const matchesSearch = course.course_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         course.course_code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || course.status.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
 
   const getStatusColor = (status) => {
-    if (!status) return 'bg-gray-500 bg-opacity-20 text-gray-400';
-    
     switch (status.toLowerCase()) {
       case 'active': return 'bg-green-500 bg-opacity-20 text-green-400';
       case 'upcoming': return 'bg-blue-500 bg-opacity-20 text-blue-400';
@@ -296,12 +190,7 @@ const CourseManagement = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-white">Course Management</h2>
-          <p className="text-gray-400">
-            Manage all courses in the system 
-            {pagination.totalCourses > 0 && (
-              <span className="text-blue-400 ml-1">({pagination.totalCourses} total courses)</span>
-            )}
-          </p>
+          <p className="text-gray-400">Manage all courses in the system</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -367,11 +256,11 @@ const CourseManagement = () => {
                 filteredCourses.map((course, index) => (
                   <tr key={course.course_id} className="border-b border-gray-700">
                     <td className="py-4 px-4">
-                      <span className="font-mono text-blue-400">{course.course_code || 'N/A'}</span>
+                      <span className="font-mono text-blue-400">{course.course_code}</span>
                     </td>
                     <td className="py-4 px-4">
                       <div>
-                        <p className="text-white font-medium">{course.course_name || 'Unnamed Course'}</p>
+                        <p className="text-white font-medium">{course.course_name}</p>
                         {course.description && (
                           <p className="text-gray-400 text-sm mt-1 truncate max-w-xs">
                             {course.description}
@@ -381,7 +270,7 @@ const CourseManagement = () => {
                     </td>
                     <td className="py-4 px-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(course.status)}`}>
-                        {course.status || 'Unknown'}
+                        {course.status}
                       </span>
                     </td>
                     <td className="py-4 px-4">
@@ -390,10 +279,10 @@ const CourseManagement = () => {
                     <td className="py-4 px-4">
                       <div className="text-sm">
                         <p className="text-gray-300">
-                          {course.start_date ? new Date(course.start_date).toLocaleDateString() : 'Not set'}
+                          {new Date(course.start_date).toLocaleDateString()}
                         </p>
                         <p className="text-gray-400">
-                          to {course.end_date ? new Date(course.end_date).toLocaleDateString() : 'Not set'}
+                          to {new Date(course.end_date).toLocaleDateString()}
                         </p>
                       </div>
                     </td>
@@ -426,67 +315,6 @@ const CourseManagement = () => {
           </table>
         </div>
       </div>
-
-      {/* Pagination Controls */}
-      {pagination.totalPages > 1 && (
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-gray-400 text-sm">
-              Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to {Math.min(pagination.currentPage * pagination.limit, pagination.totalCourses)} of {pagination.totalCourses} courses
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fetchCourses(pagination.currentPage - 1)}
-                disabled={!pagination.hasPrev}
-                className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 text-white px-3 py-2 rounded-lg text-sm"
-              >
-                Previous
-              </button>
-              
-              <div className="flex gap-1">
-                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                  .filter(page => {
-                    // Show first page, last page, current page, and 2 pages around current
-                    return page === 1 || 
-                           page === pagination.totalPages || 
-                           Math.abs(page - pagination.currentPage) <= 1;
-                  })
-                  .map((page, index, array) => {
-                    // Add ellipsis if there's a gap
-                    const prevPage = array[index - 1];
-                    const showEllipsis = prevPage && page - prevPage > 1;
-                    
-                    return (
-                      <React.Fragment key={page}>
-                        {showEllipsis && (
-                          <span className="px-3 py-2 text-gray-400">...</span>
-                        )}
-                        <button
-                          onClick={() => fetchCourses(page)}
-                          className={`px-3 py-2 rounded text-sm ${
-                            page === pagination.currentPage
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      </React.Fragment>
-                    );
-                  })}
-              </div>
-              
-              <button
-                onClick={() => fetchCourses(pagination.currentPage + 1)}
-                disabled={!pagination.hasNext}
-                className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 text-white px-3 py-2 rounded-lg text-sm"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Create Course Modal */}
       <Modal show={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create New Course" size="lg">

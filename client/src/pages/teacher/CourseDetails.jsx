@@ -5,6 +5,8 @@ import Submissions from './Submissions';
 import Announcements from './Announcements';
 import Discussions from './Discussions';
 import Resources from './Resources';
+import WeeklyManagement from './WeeklyManagement';
+import WeeklyManagementDemo from './WeeklyManagementDemo';
 import { api } from '../../utils/api';
 
 const tabList = [
@@ -71,8 +73,14 @@ export default function CourseDetails() {
             index
             element={
               <div>
-                <h2 className="text-xl font-semibold mb-2">Course Overview</h2>
-                <p className="text-gray-300">{course.description || 'No description available for this course.'}</p>
+                <h2 className="text-xl font-semibold mb-4">Course Overview</h2>
+                <div className="space-y-6">
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h3 className="text-lg font-medium mb-2">Course Description</h3>
+                    <p className="text-gray-300">{course.description || 'No description available for this course.'}</p>
+                  </div>
+                  <WeeklyManagement courseId={courseId} />
+                </div>
               </div>
             }
           />

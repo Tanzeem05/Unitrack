@@ -1,12 +1,12 @@
-
-
-
+// client/src/pages/student/CourseDetails/CourseDetails.jsx
 import { NavLink, Routes, Route, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Assignments from './Assignments';
 import Announcements from './Announcements';
 import Discussions from './Discussions';
 import Resources from './Resources';
+import WeeklyOverview from './WeeklyOverview';
+import WeeklyOverviewD from './WeeklyOverviewDemo';
 import { api } from '../../../utils/api';
 
 const tabList = [
@@ -72,8 +72,14 @@ export default function CourseDetails() {
             index
             element={
               <div>
-                <h2 className="text-xl font-semibold mb-2">Course Overview</h2>
-                <p className="text-gray-300">{course.description}</p>
+                <h2 className="text-xl font-semibold mb-4">Course Overview</h2>
+                <div className="space-y-6">
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h3 className="text-lg font-medium mb-2">Course Description</h3>
+                    <p className="text-gray-300">{course.description}</p>
+                  </div>
+                  <WeeklyOverview courseId={course.course_id} courseCode={course.course_code} />
+                </div>
               </div>
             }
           />
