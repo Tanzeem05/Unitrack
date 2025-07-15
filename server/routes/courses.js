@@ -185,7 +185,6 @@ router.delete('/:id', async (req, res) => {
   res.json({ message: 'Course deleted successfully' });
 });
 
-
 // Get all current courses for a user
 router.get('/user/:userName/current', async (req, res) => {
   const { userName } = req.params;
@@ -274,6 +273,92 @@ router.get('/teacher/:userName', async (req, res) => {
   } catch (err) {
     console.error('DB error:', err);
     return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get students enrolled in a specific course
+router.get('/:id/students', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const query = `
+      SELECT u.user_id, u.first_name, u.last_name, u.email, s.batch_year
+      FROM Student_Enrollment se
+      JOIN Students s ON se.student_id = s.student_id
+      JOIN Users u ON s.user_id = u.user_id
+      WHERE se.course_id = $1
+      ORDER BY u.first_name, u.last_name
+    `;
+    const result = await pool.query(query, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get teachers assigned to a specific course
+router.get('/:id/teachers', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const query = `
+      SELECT u.user_id, u.first_name, u.last_name, u.email, t.specialization
+      FROM Course_Teachers ct
+      JOIN Teachers t ON ct.teacher_id = t.teacher_id
+      JOIN Users u ON t.user_id = u.user_id
+      WHERE ct.course_id = $1
+      ORDER BY u.first_name, u.last_name
+    `;
+    const result = await pool.query(query, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get available students not enrolled in this course
+router.get('/:id/available-students', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const query = `
+      SELECT u.user_id, u.first_name, u.last_name, u.email, s.batch_year
+      FROM Students s
+      JOIN Users u ON s.user_id = u.user_id
+      WHERE s.student_id NOT IN (
+        SELECT student_id FROM Student_Enrollment WHERE course_id = $1
+      )
+      ORDER BY u.first_name, u.last_name
+    `;
+    const result = await pool.query(query, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get available teachers not assigned to this course
+router.get('/:id/available-teachers', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const query = `
+      SELECT u.user_id, u.first_name, u.last_name, u.email, t.specialization
+      FROM Teachers t
+      JOIN Users u ON t.user_id = u.user_id
+      WHERE t.teacher_id NOT IN (
+        SELECT teacher_id FROM Course_Teachers WHERE course_id = $1
+      )
+      ORDER BY u.first_name, u.last_name
+    `;
+    const result = await pool.query(query, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

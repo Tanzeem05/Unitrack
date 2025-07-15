@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { api } from '../../utils/api';
 import Modal from './components/Modal';
+import CourseDetails from './CourseDetails';
 
 // Course Management Component
 const CourseManagement = () => {
@@ -12,6 +13,7 @@ const CourseManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [showCourseDetails, setShowCourseDetails] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagination, setPagination] = useState({
@@ -258,6 +260,16 @@ const CourseManagement = () => {
     setShowDeleteModal(true);
   };
 
+  const showDetails = (course) => {
+    setSelectedCourse(course);
+    setShowCourseDetails(true);
+  };
+
+  const hideDetails = () => {
+    setSelectedCourse(null);
+    setShowCourseDetails(false);
+  };
+
   const filteredCourses = (courses || []).filter(course => {
     // Defensive programming: handle undefined properties
     const courseName = course.course_name || '';
@@ -288,6 +300,11 @@ const CourseManagement = () => {
         <span className="ml-3 text-gray-300">Loading courses...</span>
       </div>
     );
+  }
+
+  // Show course details if a course is selected
+  if (showCourseDetails && selectedCourse) {
+    return <CourseDetails course={selectedCourse} onBack={hideDetails} />;
   }
 
   return (
@@ -400,6 +417,12 @@ const CourseManagement = () => {
                     <td className="py-4 px-4">
                       <div className="flex space-x-2">
                         <button
+                          onClick={() => showDetails(course)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                        >
+                          View Details
+                        </button>
+                        <button
                           onClick={() => openEditModal(course)}
                           className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm"
                         >
@@ -410,6 +433,12 @@ const CourseManagement = () => {
                           className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
                         >
                           Delete
+                        </button>
+                        <button
+                          onClick={() => showDetails(course)}
+                          className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Details
                         </button>
                       </div>
                     </td>
@@ -728,6 +757,13 @@ const CourseManagement = () => {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Course Details Modal */}
+      <Modal show={showCourseDetails} onClose={hideDetails} title="Course Details" size="lg">
+        {selectedCourse && (
+          <CourseDetails course={selectedCourse} />
+        )}
       </Modal>
     </div>
   );
