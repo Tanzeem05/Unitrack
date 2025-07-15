@@ -17,6 +17,7 @@ import submissionRoutes from './routes/submissions.js';
 import courseResourceRoutes from './routes/course_resources.js';
 import courseWeeksRoutes from './routes/course_weeks.js';
 import adminRoutes from './routes/admin.js';
+import globalAnnouncementRoutes from './routes/global_announcements.js';
 
 dotenv.config();
 
@@ -41,7 +42,9 @@ app.use('/api/submissions', submissionRoutes);
 app.use('/api/resources', courseResourceRoutes);
 app.use('/api/course-weeks', courseWeeksRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/global-announcements', globalAnnouncementRoutes);
 
+app.get('/', (req, res) => res.send('Course Management Backend Running'));
 app.get('/', (req, res) => res.send('Course Management Backend Running'));
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

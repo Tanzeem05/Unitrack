@@ -53,16 +53,6 @@ router.get('/stats', async (req, res) => {
         const totalEnrollments = parseInt(totalEnrollmentsResult.rows[0].total_enrollments);
         console.log('Total enrollments:', totalEnrollments);
 
-        // Get active announcements count (announcements from last 30 days)
-        const activeAnnouncementsQuery = `
-      SELECT COUNT(*) as active_announcements 
-      FROM announcements 
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-    `;
-        const activeAnnouncementsResult = await pool.query(activeAnnouncementsQuery);
-        const activeAnnouncements = parseInt(activeAnnouncementsResult.rows[0].active_announcements);
-        console.log('Active announcements:', activeAnnouncements);
-
         // Calculate percentage changes (for demo purposes, using random changes)
         // In a real scenario, you'd compare with previous period
         const stats = {
@@ -77,10 +67,6 @@ router.get('/stats', async (req, res) => {
             totalEnrollments: {
                 value: totalEnrollments,
                 change: '+18%'
-            },
-            activeAnnouncements: {
-                value: activeAnnouncements,
-                change: '-2%'
             }
         };
 
@@ -149,19 +135,19 @@ router.get('/recent-activities', async (req, res) => {
         const recentCoursesResult = await pool.query(recentCoursesQuery);
         activities.push(...recentCoursesResult.rows);
 
-        // Get recent announcements
-        const recentAnnouncementsQuery = `
-      SELECT 'announcement' as type,
-             'Announcement sent' as title,
+        // Get recent global announcements
+        const recentGlobalAnnouncementsQuery = `
+      SELECT 'global_announcement' as type,
+             'Global announcement created' as title,
              title as description,
              created_at as time
-      FROM announcements
+      FROM global_announcements
       WHERE created_at >= NOW() - INTERVAL '7 days'
       ORDER BY created_at DESC
       LIMIT 3
     `;
-        const recentAnnouncementsResult = await pool.query(recentAnnouncementsQuery);
-        activities.push(...recentAnnouncementsResult.rows);
+        const recentGlobalAnnouncementsResult = await pool.query(recentGlobalAnnouncementsQuery);
+        activities.push(...recentGlobalAnnouncementsResult.rows);
 
         // Sort all activities by time and limit to 10
         activities.sort((a, b) => new Date(b.time) - new Date(a.time));
@@ -960,6 +946,246 @@ router.get('/users/stats/summary', async (req, res) => {
     } catch (err) {
         console.error('Error fetching user statistics:', err);
         res.status(500).json({ error: 'Failed to fetch user statistics' });
+    }
+});
+
+// ===================== GLOBAL ANNOUNCEMENTS ROUTES =====================
+
+// Get all global announcements with pagination and filtering (Admin only)
+router.get('/global-announcements', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        const priority = req.query.priority || '';
+        const target_audience = req.query.target_audience || '';
+        const is_active = req.query.is_active !== undefined ? req.query.is_active === 'true' : null;
+
+        // Build WHERE clause
+        let whereClause = '';
+        let queryParams = [];
+        let paramIndex = 1;
+
+        const conditions = [];
+        
+        if (priority) {
+            conditions.push(`priority = $${paramIndex}`);
+            queryParams.push(priority);
+            paramIndex++;
+        }
+        
+        if (target_audience) {
+            conditions.push(`target_audience = $${paramIndex}`);
+            queryParams.push(target_audience);
+            paramIndex++;
+        }
+        
+        if (is_active !== null) {
+            conditions.push(`is_active = $${paramIndex}`);
+            queryParams.push(is_active);
+            paramIndex++;
+        }
+
+        if (conditions.length > 0) {
+            whereClause = 'WHERE ' + conditions.join(' AND ');
+        }
+
+        // Get total count
+        const countQuery = `SELECT COUNT(*) as total FROM global_announcements ${whereClause}`;
+        const countResult = await pool.query(countQuery, queryParams);
+        const totalAnnouncements = parseInt(countResult.rows[0].total);
+        const totalPages = Math.ceil(totalAnnouncements / limit);
+
+        // Get announcements with creator info
+        const announcementsQuery = `
+            SELECT 
+                ga.*,
+                u.first_name || ' ' || u.last_name as creator_name,
+                u.email as creator_email,
+                CASE 
+                    WHEN ga.expires_at IS NOT NULL AND ga.expires_at < NOW() THEN 'expired'
+                    WHEN ga.is_active = false THEN 'inactive'
+                    ELSE 'active'
+                END as status
+            FROM global_announcements ga
+            LEFT JOIN users u ON ga.created_by = u.user_id
+            ${whereClause}
+            ORDER BY ga.is_pinned DESC, ga.created_at DESC
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `;
+
+        queryParams.push(limit, offset);
+        const result = await pool.query(announcementsQuery, queryParams);
+
+        res.json({
+            announcements: result.rows,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalAnnouncements: totalAnnouncements,
+                limit: limit,
+                hasNext: page < totalPages,
+                hasPrev: page > 1
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching global announcements:', err);
+        res.status(500).json({ error: 'Failed to fetch global announcements' });
+    }
+});
+
+// Create new global announcement (Admin only)
+router.post('/global-announcements', async (req, res) => {
+    try {
+        const {
+            title,
+            content,
+            priority = 'normal',
+            target_audience = 'all',
+            is_pinned = false,
+            expires_at = null
+        } = req.body;
+
+        // Validate required fields
+        if (!title || !content) {
+            return res.status(400).json({ error: 'Title and content are required' });
+        }
+
+        // Get admin user ID (in a real app, this would come from auth token)
+        const adminQuery = 'SELECT user_id FROM users WHERE user_type = \'admin\' ORDER BY user_id LIMIT 1';
+        const adminResult = await pool.query(adminQuery);
+        
+        if (adminResult.rows.length === 0) {
+            return res.status(500).json({ error: 'No admin user found' });
+        }
+
+        const adminId = adminResult.rows[0].user_id;
+
+        const query = `
+            INSERT INTO global_announcements 
+            (title, content, priority, target_audience, is_pinned, expires_at, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+        `;
+
+        const values = [title, content, priority, target_audience, is_pinned, expires_at, adminId];
+        const result = await pool.query(query, values);
+
+        // Get the created announcement with creator info
+        const createdAnnouncement = await pool.query(`
+            SELECT 
+                ga.*,
+                u.first_name || ' ' || u.last_name as creator_name,
+                u.email as creator_email
+            FROM global_announcements ga
+            LEFT JOIN users u ON ga.created_by = u.user_id
+            WHERE ga.global_announcement_id = $1
+        `, [result.rows[0].global_announcement_id]);
+
+        res.status(201).json(createdAnnouncement.rows[0]);
+    } catch (err) {
+        console.error('Error creating global announcement:', err);
+        res.status(500).json({ error: 'Failed to create global announcement' });
+    }
+});
+
+// Update global announcement (Admin only)
+router.put('/global-announcements/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            title,
+            content,
+            priority,
+            target_audience,
+            is_active,
+            is_pinned,
+            expires_at
+        } = req.body;
+
+        // Get admin user ID
+        const adminQuery = 'SELECT user_id FROM users WHERE user_type = \'admin\' ORDER BY user_id LIMIT 1';
+        const adminResult = await pool.query(adminQuery);
+        
+        if (adminResult.rows.length === 0) {
+            return res.status(500).json({ error: 'No admin user found' });
+        }
+
+        const adminId = adminResult.rows[0].user_id;
+
+        const query = `
+            UPDATE global_announcements 
+            SET title = $1, content = $2, priority = $3, target_audience = $4, 
+                is_active = $5, is_pinned = $6, expires_at = $7, 
+                updated_at = CURRENT_TIMESTAMP, updated_by = $8
+            WHERE global_announcement_id = $9
+            RETURNING *
+        `;
+
+        const values = [title, content, priority, target_audience, is_active, is_pinned, expires_at, adminId, id];
+        const result = await pool.query(query, values);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Global announcement not found' });
+        }
+
+        // Get updated announcement with creator info
+        const updatedAnnouncement = await pool.query(`
+            SELECT 
+                ga.*,
+                u.first_name || ' ' || u.last_name as creator_name,
+                u.email as creator_email
+            FROM global_announcements ga
+            LEFT JOIN users u ON ga.created_by = u.user_id
+            WHERE ga.global_announcement_id = $1
+        `, [id]);
+
+        res.json(updatedAnnouncement.rows[0]);
+    } catch (err) {
+        console.error('Error updating global announcement:', err);
+        res.status(500).json({ error: 'Failed to update global announcement' });
+    }
+});
+
+// Delete global announcement (Admin only)
+router.delete('/global-announcements/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const query = 'DELETE FROM global_announcements WHERE global_announcement_id = $1 RETURNING *';
+        const result = await pool.query(query, [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Global announcement not found' });
+        }
+
+        res.json({ message: 'Global announcement deleted successfully' });
+    } catch (err) {
+        console.error('Error deleting global announcement:', err);
+        res.status(500).json({ error: 'Failed to delete global announcement' });
+    }
+});
+
+// Get announcement statistics (Admin only)
+router.get('/global-announcements/stats', async (req, res) => {
+    try {
+        const statsQuery = `
+            SELECT 
+                COUNT(*) as total_announcements,
+                COUNT(CASE WHEN is_active = true THEN 1 END) as active_announcements,
+                COUNT(CASE WHEN is_pinned = true THEN 1 END) as pinned_announcements,
+                COUNT(CASE WHEN priority = 'urgent' THEN 1 END) as urgent_announcements,
+                COUNT(CASE WHEN target_audience = 'students' THEN 1 END) as student_announcements,
+                COUNT(CASE WHEN target_audience = 'teachers' THEN 1 END) as teacher_announcements,
+                COUNT(CASE WHEN expires_at IS NOT NULL AND expires_at < NOW() THEN 1 END) as expired_announcements
+            FROM global_announcements
+        `;
+
+        const result = await pool.query(statsQuery);
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Error fetching announcement statistics:', err);
+        res.status(500).json({ error: 'Failed to fetch announcement statistics' });
     }
 });
 

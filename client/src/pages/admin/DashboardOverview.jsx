@@ -10,8 +10,7 @@ const DashboardOverview = () => {
   const [stats, setStats] = useState({
     totalUsers: { value: 0, change: '+0%' },
     activeCourses: { value: 0, change: '+0%' },
-    totalEnrollments: { value: 0, change: '+0%' },
-    activeAnnouncements: { value: 0, change: '+0%' }
+    totalEnrollments: { value: 0, change: '+0%' }
   });
   const [activities, setActivities] = useState([]);
   const [recentUsers, setRecentUsers] = useState([]);
@@ -35,8 +34,7 @@ const DashboardOverview = () => {
           setStats({
             totalUsers: { value: '0', change: '+0%' },
             activeCourses: { value: '0', change: '+0%' },
-            totalEnrollments: { value: '0', change: '+0%' },
-            activeAnnouncements: { value: '0', change: '+0%' }
+            totalEnrollments: { value: '0', change: '+0%' }
           });
           setActivities([]);
           setRecentUsers([]);
@@ -60,10 +58,6 @@ const DashboardOverview = () => {
           totalEnrollments: {
             value: statsData.totalEnrollments.value.toLocaleString(),
             change: statsData.totalEnrollments.change
-          },
-          activeAnnouncements: {
-            value: statsData.activeAnnouncements.value.toLocaleString(),
-            change: statsData.activeAnnouncements.change
           }
         });
 
@@ -116,6 +110,7 @@ const DashboardOverview = () => {
       case 'user': return '👤';
       case 'course': return '📚';
       case 'announcement': return '📢';
+      case 'global_announcement': return '🌐';
       default: return '📄';
     }
   };
@@ -123,8 +118,7 @@ const DashboardOverview = () => {
   const statsArray = [
     { title: 'Total Users', value: stats.totalUsers.value, change: stats.totalUsers.change, color: 'from-blue-500 to-blue-600' },
     { title: 'Active Courses', value: stats.activeCourses.value, change: stats.activeCourses.change, color: 'from-red-500 to-red-600' },
-    { title: 'Total Enrollments', value: stats.totalEnrollments.value, change: stats.totalEnrollments.change, color: 'from-green-500 to-green-600' },
-    { title: 'Active Announcements', value: stats.activeAnnouncements.value, change: stats.activeAnnouncements.change, color: 'from-yellow-500 to-yellow-600' }
+    { title: 'Total Enrollments', value: stats.totalEnrollments.value, change: stats.totalEnrollments.change, color: 'from-green-500 to-green-600' }
   ];
 
   const handleSubmit = (e) => {

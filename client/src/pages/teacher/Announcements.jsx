@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../utils/api';
+import { ArrowLeft } from 'lucide-react';
 
 export default function Announcements({ courseId }) {
   const { user } = useAuth();
@@ -8,10 +9,19 @@ export default function Announcements({ courseId }) {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     content: ''
   });
+
+  const selectAnnouncement = (announcement) => {
+    setSelectedAnnouncement(announcement);
+  };
+
+  const goBackToList = () => {
+    setSelectedAnnouncement(null);
+  };
 
   useEffect(() => {
     fetchAnnouncements();
@@ -71,6 +81,52 @@ export default function Announcements({ courseId }) {
 
   if (loading) {
     return <div className="p-4">Loading announcements...</div>;
+  }
+
+  // Show individual announcement detail view
+  if (selectedAnnouncement) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={goBackToList}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Announcements
+          </button>
+        </div>
+        
+        <div className="bg-gray-800 rounded-lg border border-gray-700">
+          <div className="p-8">
+            <div className="mb-6">
+              <h1 className="text-3xl font-semibold text-white mb-4">{selectedAnnouncement.title}</h1>
+              <div className="flex items-center gap-4 text-sm text-gray-400">
+                <span>
+                  Posted on {new Date(selectedAnnouncement.created_at).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+                {selectedAnnouncement.teacher_name && (
+                  <span>By: {selectedAnnouncement.teacher_name}</span>
+                )}
+              </div>
+            </div>
+            
+            <div className="prose prose-invert max-w-none">
+              <div className="text-gray-300 leading-relaxed text-lg whitespace-pre-wrap">
+                {selectedAnnouncement.content}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -148,27 +204,36 @@ export default function Announcements({ courseId }) {
           </div>
         ) : (
           announcements.map(announcement => (
-            <div key={announcement.announcement_id} className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <div className="flex justify-between items-start mb-3">
-                <h3 className="text-lg font-semibold text-white">{announcement.title}</h3>
-                <span className="text-sm text-gray-400">
-                  {new Date(announcement.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
-              </div>
-              <p className="text-gray-300 whitespace-pre-wrap">{announcement.content}</p>
-              {announcement.teacher_name && (
-                <div className="mt-3 pt-3 border-t border-gray-600">
-                  <span className="text-sm text-gray-400">
-                    By: {announcement.teacher_name}
-                  </span>
+            <div key={announcement.announcement_id} className="bg-gray-800 rounded-lg border border-gray-700 transition-all duration-200">
+              <div 
+                className="p-6 cursor-pointer hover:bg-gray-700 transition-colors"
+                onClick={() => selectAnnouncement(announcement)}
+              >
+                <div className="flex justify-between items-center">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-white mb-2">{announcement.title}</h3>
+                    <span className="text-sm text-gray-400">
+                      {new Date(announcement.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                    {announcement.teacher_name && (
+                      <div className="mt-2">
+                        <span className="text-sm text-gray-400">
+                          By: {announcement.teacher_name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="ml-4">
+                    <span className="text-blue-400 text-sm">Click to view →</span>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           ))
         )}

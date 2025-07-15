@@ -4,7 +4,7 @@ import AdminSidebar from './admin/components/AdminSidebar';
 import DashboardOverview from './admin/DashboardOverview';
 import CourseManagement from './admin/CourseManagement';
 import UserManagementEnhanced from './admin/UserManagementEnhanced';
-import AnnouncementManagement from './admin/AnnouncementManagement';
+import CombinedAnnouncementManagement from './admin/CombinedAnnouncementManagement';
 
 // Main AdminDashboard Component
 const AdminDashboard = () => {
@@ -27,7 +27,7 @@ const AdminDashboard = () => {
       case 'courses':
         return <CourseManagement />;
       case 'announcements':
-        return <AnnouncementManagement />;
+        return <CombinedAnnouncementManagement />;
       case 'settings':
         return (
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">

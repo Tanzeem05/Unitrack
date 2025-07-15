@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../../utils/api';
-import { Bell } from 'lucide-react';
+import { Bell, ArrowLeft } from 'lucide-react';
 
 const Announcements = ({ courseCode }) => {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
@@ -45,6 +46,14 @@ const Announcements = ({ courseCode }) => {
     fetchAnnouncements();
   }, [courseCode]);
 
+  const selectAnnouncement = (announcement) => {
+    setSelectedAnnouncement(announcement);
+  };
+
+  const goBackToList = () => {
+    setSelectedAnnouncement(null);
+  };
+
   if (loading) {
     return <div className="text-center py-8">
       <div className="text-white">Loading announcements...</div>
@@ -61,6 +70,52 @@ const Announcements = ({ courseCode }) => {
         Retry
       </button>
     </div>;
+  }
+
+  // Show individual announcement detail view
+  if (selectedAnnouncement) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={goBackToList}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Announcements
+          </button>
+        </div>
+        
+        <div className="bg-purple-900 bg-opacity-20 backdrop-blur-lg rounded-2xl shadow-2xl border border-purple-400 border-opacity-30 overflow-hidden">
+          <div className="p-8">
+            <div className="mb-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <h1 className="text-3xl font-bold text-white">{selectedAnnouncement.title}</h1>
+                {!selectedAnnouncement.is_read && (
+                  <span className="inline-block px-3 py-1 text-sm font-semibold text-green-800 bg-green-200 rounded-full">New</span>
+                )}
+              </div>
+              <p className="text-sm text-gray-400">
+                Posted on {new Date(selectedAnnouncement.created_at).toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </p>
+            </div>
+            
+            <div className="prose prose-invert max-w-none">
+              <div className="text-gray-200 leading-relaxed text-lg whitespace-pre-wrap">
+                {selectedAnnouncement.content}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -80,17 +135,25 @@ const Announcements = ({ courseCode }) => {
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {announcements.map((announcement) => (
-            <div key={announcement.announcement_id} className={`bg-purple-900 bg-opacity-20 backdrop-blur-lg rounded-2xl shadow-2xl border border-purple-400 border-opacity-30 overflow-hidden ${announcement.is_read ? '' : 'border-green-400'}`}>
+            <div 
+              key={announcement.announcement_id} 
+              className={`bg-purple-900 bg-opacity-20 backdrop-blur-lg rounded-2xl shadow-2xl border border-purple-400 border-opacity-30 overflow-hidden cursor-pointer hover:bg-purple-800 hover:bg-opacity-20 transition-all duration-200 ${announcement.is_read ? '' : 'border-green-400'}`}
+              onClick={() => selectAnnouncement(announcement)}
+            >
               <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h4 className="text-xl font-bold text-white">{announcement.title}</h4>
-                      {!announcement.is_read && <span className="inline-block px-2 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">New</span>}
+                      <h4 className="text-xl font-bold text-white hover:text-purple-300 transition-colors">
+                        {announcement.title}
+                      </h4>
+                      {!announcement.is_read && (
+                        <span className="inline-block px-2 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">New</span>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-400 mb-3">
+                    <p className="text-sm text-gray-400">
                       {new Date(announcement.created_at).toLocaleDateString('en-US', {
                         weekday: 'long',
                         year: 'numeric',
@@ -98,9 +161,17 @@ const Announcements = ({ courseCode }) => {
                         day: 'numeric'
                       })}
                     </p>
+                    <p className="text-gray-300 mt-2 line-clamp-2">
+                      {announcement.content.length > 100 
+                        ? announcement.content.substring(0, 100) + '...' 
+                        : announcement.content
+                      }
+                    </p>
+                  </div>
+                  <div className="ml-4 text-purple-400">
+                    →
                   </div>
                 </div>
-                <p className="text-gray-200 leading-relaxed text-lg">{announcement.content}</p>
               </div>
             </div>
           ))}

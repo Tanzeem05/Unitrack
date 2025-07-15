@@ -5,7 +5,7 @@ import TeacherSidebar from './teacher/TeacherSidebar';
 import CoursesPage from './teacher/CoursePage';
 import CourseDetails from './teacher/CourseDetails';
 import Messages from './teacher/Messages';
-import GlobalAnnouncement from './admin/GlobalAnnouncement'; // Assuming this is the correct path for Global Announcements
+import GlobalAnnouncementsView from './teacher/GlobalAnnouncements'; // Teacher-specific global announcements component
 import { getUnreadMessageCount } from '../utils/api';
 
 export default function TeacherDashboard() {
@@ -65,7 +65,7 @@ export default function TeacherDashboard() {
         <div className="p-6">
           <Routes>
             <Route index element={<CoursesPage />} />
-            <Route path="announcements" element={<GlobalAnnouncement />} />
+            <Route path="announcements" element={<GlobalAnnouncementsView />} />
             <Route path="messages" element={<Messages onUnreadCountChange={refreshUnreadCount} />} />
             <Route path="courses/:courseId/*" element={<CourseDetails />} />
           </Routes>
