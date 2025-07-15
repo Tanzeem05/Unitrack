@@ -1,10 +1,28 @@
+import { BookOpen, CheckCircle, Bell, MessageSquare, User, LogOut, GraduationCap, X, ChevronUp } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useState } from 'react';
+
 // Sidebar Component
 const Sidebar = ({ isOpen, onClose, activeTab, onTabChange }) => {
+  const { user, logout } = useAuth();
+  const [showLogoutMenu, setShowLogoutMenu] = useState(false);
+  
   const navItems = [
     { id: 'current', label: 'Current Courses', icon: BookOpen, count: 3 },
     { id: 'completed', label: 'Completed Courses', icon: CheckCircle, count: 12 },
     { id: 'announcements', label: 'Announcements', icon: Bell, count: 2 }
   ];
+
+  const handleLogout = () => {
+    console.log('Student logout initiated'); // Debug log
+    setShowLogoutMenu(false);
+    logout();
+  };
+
+  const handleProfileClick = () => {
+    setShowLogoutMenu(false);
+    onTabChange('profile');
+  };
 
   return (
     <>
@@ -66,17 +84,53 @@ const Sidebar = ({ isOpen, onClose, activeTab, onTabChange }) => {
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-purple-700/50">
-          <div className="flex items-center space-x-3 p-4 rounded-xl bg-purple-800/50 backdrop-blur-sm">
-            <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
+          <div className="relative">
+            {/* Logout confirmation dropdown */}
+            {showLogoutMenu && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 rounded-lg border border-gray-600 shadow-xl z-50">
+                <div className="p-4">
+                  <p className="text-white text-sm mb-3">Are you sure you want to log out?</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleLogout}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2 px-3 rounded transition-colors"
+                    >
+                      Yes, Logout
+                    </button>
+                    <button
+                      onClick={() => setShowLogoutMenu(false)}
+                      className="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-sm py-2 px-3 rounded transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex items-center space-x-3 p-4 rounded-xl bg-purple-800/50 backdrop-blur-sm">
+              <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div 
+                className="flex-1 cursor-pointer hover:bg-purple-700/30 rounded-lg p-1 transition-colors"
+                onClick={handleProfileClick}
+              >
+                <p className="text-sm font-medium text-white">
+                  {user?.first_name && user?.last_name 
+                    ? `${user.first_name} ${user.last_name}` 
+                    : user?.username || 'User'}
+                </p>
+                <p className="text-xs text-purple-300">Computer Science</p>
+              </div>
+              <button 
+                onClick={() => setShowLogoutMenu(!showLogoutMenu)}
+                className="text-purple-300 hover:text-white transition-colors p-2 hover:bg-purple-700/50 rounded-lg"
+                title="Logout"
+              >
+                {showLogoutMenu ? <ChevronUp className="w-5 h-5" /> : <LogOut className="w-5 h-5" />}
+              </button>
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-white">John Doe</p>
-              <p className="text-xs text-purple-300">Computer Science</p>
-            </div>
-            <button className="text-purple-300 hover:text-white transition-colors">
-              <LogOut className="w-5 h-5" />
-            </button>
           </div>
         </div>
       </div>

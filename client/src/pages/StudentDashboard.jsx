@@ -6,6 +6,7 @@ import CurrentCourses from './student/CurrentCourses';
 import CompletedCourses from './student/CompletedCourses';
 import CourseDetails from './student/CourseDetails/CourseDetails';
 import Messages from './student/Messages';
+import Profile from './student/Profile';
 import GlobalAnnouncementsView from './student/GlobalAnnouncements';
 import { getUnreadMessageCount } from '../utils/api';
 
@@ -57,6 +58,7 @@ export default function StudentDashboard() {
             <Route path="completed" element={<CompletedCourses />} />
             <Route path="messages" element={<Messages onUnreadCountChange={refreshUnreadCount} />} />
             <Route path="announcements" element={<GlobalAnnouncementsView />} />
+            <Route path="profile" element={<Profile />} />
             <Route path="courses/:courseCode/*" element={<CourseDetails />} />
           </Routes>
         </div>

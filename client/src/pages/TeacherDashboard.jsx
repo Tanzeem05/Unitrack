@@ -5,6 +5,7 @@ import TeacherSidebar from './teacher/TeacherSidebar';
 import CoursesPage from './teacher/CoursePage';
 import CourseDetails from './teacher/CourseDetails';
 import Messages from './teacher/Messages';
+import Profile from './teacher/Profile';
 import GlobalAnnouncementsView from './teacher/GlobalAnnouncements'; // Teacher-specific global announcements component
 import { getUnreadMessageCount } from '../utils/api';
 
@@ -50,6 +51,8 @@ export default function TeacherDashboard() {
       navigate('/teacher/announcements');
     } else if (tab === 'messages') {
       navigate('/teacher/messages');
+    } else if (tab === 'profile') {
+      navigate('/teacher/profile');
     }
   };
 
@@ -67,6 +70,7 @@ export default function TeacherDashboard() {
             <Route index element={<CoursesPage />} />
             <Route path="announcements" element={<GlobalAnnouncementsView />} />
             <Route path="messages" element={<Messages onUnreadCountChange={refreshUnreadCount} />} />
+            <Route path="profile" element={<Profile />} />
             <Route path="courses/:courseId/*" element={<CourseDetails />} />
           </Routes>
         </div>

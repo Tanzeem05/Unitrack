@@ -41,3 +41,18 @@ export const api = async (url, method = 'GET', body = null, isFormData = false) 
 export const getUnreadMessageCount = async () => {
   return await api('/messages/unread-count');
 };
+
+// Get current courses for a student
+export const getCurrentCourses = async (username) => {
+  return await api(`/courses/user/${username}/current`);
+};
+
+// Get completed courses for a student
+export const getCompletedCourses = async (username) => {
+  return await api(`/courses/user/${username}/completed`);
+};
+
+// Get courses taught by a teacher
+export const getTeacherCourses = async (username) => {
+  return await api(`/courses/teacher/${username}`);
+};

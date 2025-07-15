@@ -16,13 +16,16 @@ export default function App() {
   if (isLoading) {
     return <div className="p-8 text-center text-lg">Loading...</div>; // or a spinner
   }
+
+  // Debug logging
+  console.log('App - Current user:', user);
   
   return (
     <Routes>
       <Route path="/" element={<LoginPage />} />
-      <Route path="/admin/*" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/" />} />
-      <Route path="/teacher/*" element={user?.role === 'teacher' ? <TeacherDashboard /> : <Navigate to="/" />} />
-      <Route path="/student/*" element={user?.role === 'student' ? <StudentDashboard /> : <Navigate to="/" />} />
+      <Route path="/admin/*" element={user?.user_type === 'admin' || user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/" />} />
+      <Route path="/teacher/*" element={user?.user_type === 'teacher' || user?.role === 'teacher' ? <TeacherDashboard /> : <Navigate to="/" />} />
+      <Route path="/student/*" element={user?.user_type === 'student' || user?.role === 'student' ? <StudentDashboard /> : <Navigate to="/" />} />
     </Routes>
   );
 }

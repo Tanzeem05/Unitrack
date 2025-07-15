@@ -10,7 +10,13 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        localStorage.removeItem('user');
+      }
     }
     setIsLoading(false); // Done loading
   }, []);
@@ -23,8 +29,24 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
+  const logout = () => {
+    console.log('Logout function called'); // Debug log
+    
+    // Clear user state immediately
+    setUser(null);
+    
+    // Clear all localStorage items
+    localStorage.clear();
+    
+    // Clear session storage as well
+    sessionStorage.clear();
+    
+    // Force immediate redirect without delay
+    window.location.replace('/');
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser, isLoading }}>
+    <AuthContext.Provider value={{ user, setUser, isLoading, logout }}>
       {children}
     </AuthContext.Provider>
   );

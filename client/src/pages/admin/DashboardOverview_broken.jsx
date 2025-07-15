@@ -15,10 +15,7 @@ const DashboardOverview = () => {
     email: '',
     first_name: '',
     last_name: '',
-    user_type: 'student',
-    admin_level: '',
-    specialization: '',
-    batch_year: ''
+    user_type: 'student'
   });
   
   const [courseForm, setCourseForm] = useState({
@@ -36,8 +33,8 @@ const DashboardOverview = () => {
     target_audience: 'all'
   });
   
+  const [teachers, setTeachers] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' }); // success, error, info
   
   const [stats, setStats] = useState({
     totalUsers: { value: 0, change: '+0%' },
@@ -112,6 +109,14 @@ const DashboardOverview = () => {
         const enrollmentData = await api('/admin/enrollments/by-course');
         setEnrollmentsByCourse(enrollmentData);
 
+        // Fetch teachers for course creation
+        try {
+          const teachersData = await api('/admin/users?userType=teacher&limit=100');
+          setTeachers(teachersData.users || []);
+        } catch (err) {
+          console.warn('Could not fetch teachers:', err);
+        }
+
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
         setError('Failed to load dashboard data. Please check if the server is running.');
@@ -153,26 +158,7 @@ const DashboardOverview = () => {
     setIsSubmitting(true);
     
     try {
-      // Prepare the form data with role-specific fields
-      const userData = {
-        username: userForm.username,
-        password: userForm.password,
-        email: userForm.email,
-        first_name: userForm.first_name,
-        last_name: userForm.last_name,
-        user_type: userForm.user_type
-      };
-
-      // Add role-specific fields
-      if (userForm.user_type === 'admin') {
-        userData.admin_level = userForm.admin_level;
-      } else if (userForm.user_type === 'teacher') {
-        userData.specialization = userForm.specialization;
-      } else if (userForm.user_type === 'student') {
-        userData.batch_year = userForm.batch_year;
-      }
-
-      await api('/users/register', 'POST', userData);
+      await api('/auth/signup', 'POST', userForm);
       
       // Reset form and close modal
       setUserForm({
@@ -181,25 +167,16 @@ const DashboardOverview = () => {
         email: '',
         first_name: '',
         last_name: '',
-        user_type: 'student',
-        admin_level: '',
-        specialization: '',
-        batch_year: ''
+        user_type: 'student'
       });
       setShowUserModal(false);
-      
-      setMessage({ text: 'User created successfully!', type: 'success' });
-      // Auto-hide message after 3 seconds
-      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
       
       // Refresh dashboard data
       window.location.reload(); // Simple refresh for now
       
     } catch (error) {
       console.error('Error creating user:', error);
-      setMessage({ text: 'Error creating user: ' + error.message, type: 'error' });
-      // Auto-hide error message after 5 seconds
-      setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+      alert('Error creating user: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -230,16 +207,12 @@ const DashboardOverview = () => {
       });
       setShowCourseModal(false);
       
-      setMessage({ text: 'Course created successfully!', type: 'success' });
-      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
-      
       // Refresh dashboard data
       window.location.reload(); // Simple refresh for now
       
     } catch (error) {
       console.error('Error creating course:', error);
-      setMessage({ text: 'Error creating course: ' + error.message, type: 'error' });
-      setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+      alert('Error creating course: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -267,16 +240,12 @@ const DashboardOverview = () => {
       });
       setShowAnnouncementModal(false);
       
-      setMessage({ text: 'Announcement sent successfully!', type: 'success' });
-      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
-      
       // Refresh dashboard data
       window.location.reload(); // Simple refresh for now
       
     } catch (error) {
       console.error('Error sending announcement:', error);
-      setMessage({ text: 'Error sending announcement: ' + error.message, type: 'error' });
-      setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+      alert('Error sending announcement: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -289,35 +258,22 @@ const DashboardOverview = () => {
     
     if (diffInHours < 1) return 'Just now';
     if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-    return `${Math.floor(diffInHours / 24)} day${Math.floor(diffInHours / 24) > 1 ? 's' : ''} ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    
+    return time.toLocaleDateString();
   };
 
   const getActivityIcon = (type) => {
     switch (type) {
-      case 'user_created': return '👤';
-      case 'course_created': return '📚';
+      case 'user': return '👤';
+      case 'course': return '📚';
       case 'announcement': return '📢';
-      case 'enrollment': return '✏️';
-      default: return '📝';
+      case 'global_announcement': return '🌐';
+      default: return '📄';
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-red-400 mb-2">Error</h2>
-        <p className="text-red-300">{error}</p>
-      </div>
-    );
-  }
 
   const statsArray = [
     { title: 'Total Users', value: stats.totalUsers.value, change: stats.totalUsers.change, color: 'from-blue-500 to-blue-600' },
@@ -325,50 +281,56 @@ const DashboardOverview = () => {
     { title: 'Total Enrollments', value: stats.totalEnrollments.value, change: stats.totalEnrollments.change, color: 'from-green-500 to-green-600' }
   ];
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <span className="ml-3 text-gray-300">Loading dashboard...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-900/20 border border-red-500 rounded-lg p-6 text-center">
+        <p className="text-red-400 mb-4">{error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Message Display */}
-      {message.text && (
-        <div className={`p-4 rounded-lg border ${
-          message.type === 'success' 
-            ? 'bg-green-500 bg-opacity-20 border-green-500 text-green-400' 
-            : message.type === 'error'
-            ? 'bg-red-500 bg-opacity-20 border-red-500 text-red-400'
-            : 'bg-blue-500 bg-opacity-20 border-blue-500 text-blue-400'
-        }`}>
-          <div className="flex items-center gap-2">
-            <span>
-              {message.type === 'success' ? '✅' : message.type === 'error' ? '❌' : 'ℹ️'}
-            </span>
-            <span>{message.text}</span>
-            <button 
-              onClick={() => setMessage({ text: '', type: '' })}
-              className="ml-auto text-current hover:opacity-75"
-            >
-              ×
-            </button>
-          </div>
+      {/* Global Announcement Banner */}
+      <div className="bg-gradient-to-r from-pink-500 to-red-500 rounded-lg p-6 flex items-center gap-4">
+        <span className="text-2xl">📢</span>
+        <div>
+          <h4 className="text-lg font-semibold text-white mb-1">Global Announcement</h4>
+          <p className="text-pink-100">System maintenance scheduled for this weekend. All users will be notified.</p>
         </div>
-      )}
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsArray.map((stat, index) => (
           <div 
             key={index} 
-            className={`bg-gray-800 rounded-lg p-6 border border-gray-700 ${
-              stat.title === 'Total Enrollments' ? 'cursor-pointer hover:bg-gray-750' : ''
+            className={`bg-gray-800 rounded-lg p-6 border border-gray-700 transition-transform ${
+              stat.title === 'Total Enrollments' ? 'cursor-pointer hover:scale-105' : ''
             }`}
             onClick={stat.title === 'Total Enrollments' ? () => setShowEnrollmentDetails(true) : undefined}
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-300">{stat.title}</h3>
+                <p className="text-gray-400 text-sm uppercase tracking-wider">{stat.title}</p>
                 <p className="text-3xl font-bold text-white mt-2">{stat.value}</p>
-                <p className={`text-sm mt-2 ${
-                  stat.change.includes('+') ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {stat.change} from last month
+                <p className={`text-sm mt-1 ${stat.change.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
+                  {stat.change} this month
                 </p>
                 {stat.title === 'Total Enrollments' && (
                   <p className="text-xs text-blue-400 mt-1">Click to view details</p>
@@ -545,54 +507,6 @@ const DashboardOverview = () => {
               <option value="admin">Admin</option>
             </select>
           </div>
-          
-          {/* Role-specific fields */}
-          {userForm.user_type === 'admin' && (
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Admin Level</label>
-              <select 
-                name="admin_level"
-                value={userForm.admin_level}
-                onChange={handleUserFormChange}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="">Select Admin Level</option>
-                <option value="super">Super Admin</option>
-                <option value="basic">Basic Admin</option>
-              </select>
-            </div>
-          )}
-          
-          {userForm.user_type === 'teacher' && (
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Specialization</label>
-              <input 
-                type="text" 
-                name="specialization"
-                value={userForm.specialization}
-                onChange={handleUserFormChange}
-                placeholder="e.g., Computer Science, Mathematics"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-          )}
-          
-          {userForm.user_type === 'student' && (
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Batch Year</label>
-              <input 
-                type="text" 
-                name="batch_year"
-                value={userForm.batch_year}
-                onChange={handleUserFormChange}
-                placeholder="e.g., 2024, Spring 2024, Fall 2023"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-          )}
           <div className="flex gap-3 mt-6">
             <button 
               type="submit" 
@@ -760,6 +674,39 @@ const DashboardOverview = () => {
                 <option value="admins">Admins Only</option>
               </select>
             </div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Sending...
+                </>
+              ) : (
+                'Send Announcement'
+              )}
+            </button>
+            <button 
+              type="button"
+              onClick={() => setShowAnnouncementModal(false)} 
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
+          <div>
+            <label className="block text-gray-300 text-sm font-medium mb-2">Target Audience</label>
+            <select className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white">
+              <option>All Users</option>
+              <option>Students Only</option>
+              <option>Instructors Only</option>
+            </select>
           </div>
           <div className="flex gap-3 mt-6">
             <button 
