@@ -84,8 +84,9 @@ export default function CourseDetails() {
               </div>
             }
           />
-          <Route path="assignments/*" element={<Assignments courseId={courseId} />} />
-          <Route path="submissions" element={<Submissions />} />
+          <Route path="assignments/:assignmentId/submissions" element={<Submissions courseId={courseId} />} />
+          <Route path="assignments/*" element={<Assignments />} />
+          <Route path="submissions" element={<Submissions courseId={courseId} />} />
           <Route path="announcements" element={<Announcements courseId={courseId} />} />
           <Route path="discussions" element={<Discussions courseId={courseId} />} />
           <Route path="resources" element={<Resources courseId={courseId} />} />

@@ -101,6 +101,13 @@ export default function Assignments({ courseCode }) {
       alert('Please select a file to submit.');
       return;
     }
+
+    // Check if assignment is overdue
+    const assignment = assignments.find(a => a.assignment_id === assignmentId);
+    if (assignment && isOverdue(assignment.due_date)) {
+      alert('Cannot submit assignment. The deadline has passed.');
+      return;
+    }
     
     setSubmitting(prev => ({ ...prev, [assignmentId]: true }));
     
@@ -268,40 +275,53 @@ export default function Assignments({ courseCode }) {
 
             {/* Submission Form */}
             <div className="border-t border-gray-700 pt-4">
-              <h4 className="font-medium text-white mb-3">
-                {submission ? 'Resubmit Assignment' : 'Submit Assignment'}
-              </h4>
-              
-              <form onSubmit={(e) => handleSubmit(e, assignment.assignment_id)} className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Select File
-                  </label>
-                  <input 
-                    type="file" 
-                    data-assignment-id={assignment.assignment_id}
-                    onChange={(e) => handleFileChange(assignment.assignment_id, e.target.files[0])} 
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-blue-600 file:text-white file:cursor-pointer"
-                    required 
-                    disabled={isSubmitting}
-                  />
+              {overdue ? (
+                <div className="bg-red-900/50 border border-red-600 rounded-lg p-4">
+                  <h4 className="font-medium text-red-300 mb-2">
+                    Submission Deadline Passed
+                  </h4>
+                  <p className="text-red-400 text-sm">
+                    This assignment deadline has passed. Submissions are no longer accepted.
+                  </p>
                 </div>
-                
-                <button 
-                  type="submit" 
-                  disabled={isSubmitting || !files[assignment.assignment_id]}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Submitting...</span>
-                    </>
-                  ) : (
-                    <span>{submission ? 'Resubmit' : 'Submit'}</span>
-                  )}
-                </button>
-              </form>
+              ) : (
+                <>
+                  <h4 className="font-medium text-white mb-3">
+                    {submission ? 'Resubmit Assignment' : 'Submit Assignment'}
+                  </h4>
+                  
+                  <form onSubmit={(e) => handleSubmit(e, assignment.assignment_id)} className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                        Select File
+                      </label>
+                      <input 
+                        type="file" 
+                        data-assignment-id={assignment.assignment_id}
+                        onChange={(e) => handleFileChange(assignment.assignment_id, e.target.files[0])} 
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-blue-600 file:text-white file:cursor-pointer"
+                        required 
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    
+                    <button 
+                      type="submit" 
+                      disabled={isSubmitting || !files[assignment.assignment_id]}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Submitting...</span>
+                        </>
+                      ) : (
+                        <span>{submission ? 'Resubmit' : 'Submit'}</span>
+                      )}
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
           </div>
         );

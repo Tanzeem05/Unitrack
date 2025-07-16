@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function Submissions() {
-  const { courseId } = useParams();
+export default function Submissions({ courseId: propCourseId }) {
+  const { courseId: paramCourseId, assignmentId } = useParams();
+  const courseId = propCourseId || paramCourseId;
   const navigate = useNavigate();
   const { user } = useAuth();
   const [assignments, setAssignments] = useState([]);
@@ -35,6 +36,16 @@ export default function Submissions() {
       fetchAssignments();
     }
   }, [courseId]);
+
+  // Auto-select assignment if assignmentId is provided in URL
+  useEffect(() => {
+    if (assignmentId && assignments.length > 0) {
+      const assignment = assignments.find(a => a.assignment_id === parseInt(assignmentId));
+      if (assignment) {
+        fetchSubmissions(assignmentId);
+      }
+    }
+  }, [assignmentId, assignments]);
 
   const fetchSubmissions = async (assignmentId) => {
     try {
@@ -164,7 +175,12 @@ export default function Submissions() {
                 <div key={assignment.assignment_id} className="bg-gray-800 rounded-lg p-6 shadow-lg">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-white mb-2">{assignment.title}</h3>
+                      <button
+                        onClick={() => fetchSubmissions(assignment.assignment_id)}
+                        className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                      >
+                        {assignment.title}
+                      </button>
                       <p className="text-gray-300 mb-3">{assignment.description}</p>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">

@@ -10,6 +10,8 @@ export default function Assignments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState(null);
 
   const [newAssignment, setNewAssignment] = useState({
     title: '',
@@ -158,6 +160,103 @@ export default function Assignments() {
   }
 };
 
+  const handleEdit = (assignment) => {
+    setEditingAssignment(assignment);
+    setNewAssignment({
+      title: assignment.title,
+      description: assignment.description,
+      due_date: new Date(assignment.due_date).toISOString().slice(0, 16), // Format for datetime-local
+      max_points: assignment.max_points.toString(),
+      weight_percentage: assignment.weight_percentage.toString(),
+      assignmentFile: null,
+    });
+    setShowEditForm(true);
+    setShowCreateForm(false);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    
+    if (!editingAssignment) return;
+    
+    // Validate required fields
+    if (!newAssignment.title || !newAssignment.due_date || !newAssignment.max_points || !newAssignment.weight_percentage) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+
+    // Format the date properly for PostgreSQL
+    const formattedDate = new Date(newAssignment.due_date).toISOString();
+
+    const formData = new FormData();
+    formData.append('title', newAssignment.title);
+    formData.append('description', newAssignment.description);
+    formData.append('due_date', formattedDate);
+    formData.append('max_points', parseInt(newAssignment.max_points));
+    formData.append('weight_percentage', parseFloat(newAssignment.weight_percentage));
+    
+    if (newAssignment.assignmentFile) {
+      formData.append('assignmentFile', newAssignment.assignmentFile);
+    }
+
+    try {
+      const response = await api(`/assignments/${editingAssignment.assignment_id}`, 'PUT', formData, true);
+      
+      // Update the assignments list
+      setAssignments(prev => prev.map(assignment => 
+        assignment.assignment_id === editingAssignment.assignment_id 
+          ? response.assignment 
+          : assignment
+      ));
+      
+      // Reset form
+      setNewAssignment({
+        title: '',
+        description: '',
+        due_date: '',
+        max_points: '',
+        weight_percentage: '',
+        assignmentFile: null,
+      });
+      setShowEditForm(false);
+      setEditingAssignment(null);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to update assignment:', err);
+      setError(`Failed to update assignment: ${err.message}`);
+    }
+  };
+
+  const handleDelete = async (assignmentId) => {
+    if (!window.confirm('Are you sure you want to delete this assignment? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await api(`/assignments/${assignmentId}`, 'DELETE');
+      
+      // Remove the assignment from the list
+      setAssignments(prev => prev.filter(assignment => assignment.assignment_id !== assignmentId));
+      setError(null);
+    } catch (err) {
+      console.error('Failed to delete assignment:', err);
+      setError(`Failed to delete assignment: ${err.message}`);
+    }
+  };
+
+  const cancelEdit = () => {
+    setShowEditForm(false);
+    setEditingAssignment(null);
+    setNewAssignment({
+      title: '',
+      description: '',
+      due_date: '',
+      max_points: '',
+      weight_percentage: '',
+      assignmentFile: null,
+    });
+  };
+
   if (loading) {
     return <p className="p-4">Loading assignments...</p>;
   }
@@ -171,7 +270,12 @@ export default function Assignments() {
       <h2 className="text-xl font-semibold mb-4">Assignments</h2>
 
       <button
-        onClick={() => setShowCreateForm(!showCreateForm)}
+        onClick={() => {
+          setShowCreateForm(!showCreateForm);
+          if (showEditForm) {
+            cancelEdit();
+          }
+        }}
         className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-4"
       >
         {showCreateForm ? 'Cancel' : 'Create New Assignment'}
@@ -258,20 +362,137 @@ export default function Assignments() {
         </form>
       )}
 
+      {showEditForm && editingAssignment && (
+        <form onSubmit={handleUpdate} className="bg-gray-800 p-4 rounded-lg mb-6 border-2 border-yellow-500">
+          <h3 className="text-lg font-semibold mb-2 text-yellow-400">Edit Assignment</h3>
+          <div className="mb-2">
+            <label htmlFor="edit_title" className="block text-sm font-medium text-gray-300">Title</label>
+            <input
+              type="text"
+              id="edit_title"
+              name="title"
+              value={newAssignment.title}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white focus:border-yellow-500 focus:ring-yellow-500"
+              required
+            />
+          </div>
+          <div className="mb-2">
+            <label htmlFor="edit_description" className="block text-sm font-medium text-gray-300">Description</label>
+            <textarea
+              id="edit_description"
+              name="description"
+              value={newAssignment.description}
+              onChange={handleInputChange}
+              rows="3"
+              className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white focus:border-yellow-500 focus:ring-yellow-500"
+            ></textarea>
+          </div>
+          <div className="mb-2">
+            <label htmlFor="edit_due_date" className="block text-sm font-medium text-gray-300">Due Date</label>
+            <input
+              type="datetime-local"
+              id="edit_due_date"
+              name="due_date"
+              value={newAssignment.due_date}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white focus:border-yellow-500 focus:ring-yellow-500"
+              required
+            />
+          </div>
+          <div className="mb-2">
+            <label htmlFor="edit_max_points" className="block text-sm font-medium text-gray-300">Max Points</label>
+            <input
+              type="number"
+              id="edit_max_points"
+              name="max_points"
+              value={newAssignment.max_points}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white focus:border-yellow-500 focus:ring-yellow-500"
+              required
+            />
+          </div>
+          <div className="mb-2">
+            <label htmlFor="edit_weight_percentage" className="block text-sm font-medium text-gray-300">Weight Percentage</label>
+            <input
+              type="number"
+              id="edit_weight_percentage"
+              name="weight_percentage"
+              value={newAssignment.weight_percentage}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white focus:border-yellow-500 focus:ring-yellow-500"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="edit_assignmentFile" className="block text-sm font-medium text-gray-300">Assignment File (Optional - leave empty to keep current file)</label>
+            <input
+              type="file"
+              id="edit_assignmentFile"
+              name="assignmentFile"
+              onChange={handleFileChange}
+              className="mt-1 block w-full text-gray-300"
+            />
+            {editingAssignment.file_url && (
+              <p className="text-sm text-gray-400 mt-1">
+                Current file: <a href={editingAssignment.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">View current file</a>
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Update Assignment
+            </button>
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
       {assignments.length > 0 ? (
         <ul className="space-y-3">
           {assignments.map(assignment => (
             <li key={assignment.assignment_id} className="bg-gray-800 p-4 rounded-lg shadow">
-              <Link to={`${assignment.assignment_id}/submissions`} className="text-blue-400 hover:underline text-lg font-semibold">
-                {assignment.title}
-              </Link>
-              <p className="text-gray-400 text-sm">Due: {new Date(assignment.due_date).toLocaleString()}</p>
-              <p className="text-gray-300">{assignment.description}</p>
-              {assignment.file_url && (
-                <a href={assignment.file_url} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline text-sm">
-                  Download Assignment File
-                </a>
-              )}
+              <div className="flex justify-between items-start mb-2">
+                <Link to={`${assignment.assignment_id}/submissions`} className="text-blue-400 hover:underline text-lg font-semibold">
+                  {assignment.title}
+                </Link>
+                <div className="flex gap-2 ml-4">
+                  <button
+                    onClick={() => handleEdit(assignment)}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm font-medium"
+                  >
+                    ✏️ Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(assignment.assignment_id)}
+                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm font-medium"
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mb-2">Due: {new Date(assignment.due_date).toLocaleString()}</p>
+              <p className="text-gray-300 mb-3">{assignment.description}</p>
+              <div className="flex justify-between items-center">
+                <div className="flex gap-4 text-sm">
+                  <span className="text-blue-300">📊 {assignment.max_points} points</span>
+                  <span className="text-green-300">⚖️ {assignment.weight_percentage}%</span>
+                </div>
+                {assignment.file_url && (
+                  <a href={assignment.file_url} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline text-sm">
+                    📎 Download File
+                  </a>
+                )}
+              </div>
             </li>
           ))}
         </ul>

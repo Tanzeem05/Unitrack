@@ -33,12 +33,28 @@ router.post('/', upload.single('file'), async (req, res) => {
   }
 
   try {
-    // First, check if assignment exists
+    // First, check if assignment exists and get its details including due date
     console.log('Checking if assignment exists:', assignment_id);
-    const assignmentCheck = await pool.query('SELECT assignment_id FROM assignments WHERE assignment_id = $1', [assignment_id]);
+    const assignmentCheck = await pool.query(
+      'SELECT assignment_id, due_date, title FROM assignments WHERE assignment_id = $1', 
+      [assignment_id]
+    );
     if (assignmentCheck.rows.length === 0) {
       console.log('Assignment not found:', assignment_id);
       return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    // Check if assignment deadline has passed
+    const assignment = assignmentCheck.rows[0];
+    const dueDate = new Date(assignment.due_date);
+    const currentDate = new Date();
+    
+    if (currentDate > dueDate) {
+      console.log('Assignment deadline has passed:', assignment.due_date);
+      return res.status(400).json({ 
+        error: 'Cannot submit assignment. The deadline has passed.',
+        due_date: assignment.due_date
+      });
     }
     
     // Get student_id from user_id
