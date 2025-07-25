@@ -80,7 +80,7 @@ router.get('/course/:courseId/weeks', async (req, res) => {
   }
 });
 
-// Update week topic (teachers only)
+
 // Update week topic (teachers only)
 router.put('/weeks/:weekId', async (req, res) => {
   const { weekId } = req.params;

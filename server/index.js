@@ -18,6 +18,7 @@ import courseResourceRoutes from './routes/course_resources.js';
 import courseWeeksRoutes from './routes/course_weeks.js';
 import adminRoutes from './routes/admin.js';
 import globalAnnouncementRoutes from './routes/global_announcements.js';
+import weeklyPerformanceRoutes from './routes/weekly_performance.js';
 
 
 dotenv.config();
@@ -44,6 +45,7 @@ app.use('/api/resources', courseResourceRoutes);
 app.use('/api/course-weeks', courseWeeksRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/global-announcements', globalAnnouncementRoutes);
+app.use('/api/weekly-performance', weeklyPerformanceRoutes);
 
 app.get('/', (req, res) => res.send('Course Management Backend Running'));
 app.get('/', (req, res) => res.send('Course Management Backend Running'));

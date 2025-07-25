@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import CurrentCourses from './student/CurrentCourses';
 import CompletedCourses from './student/CompletedCourses';
 import CourseDetails from './student/CourseDetails/CourseDetails';
+import CompletedCourseDetails from './student/CompletedCourseDetails/CompletedCourseDetails';
 import Messages from './student/Messages';
 import Profile from './student/Profile';
 import GlobalAnnouncementsView from './student/GlobalAnnouncements';
@@ -60,6 +61,7 @@ export default function StudentDashboard() {
             <Route path="announcements" element={<GlobalAnnouncementsView />} />
             <Route path="profile" element={<Profile />} />
             <Route path="courses/:courseCode/*" element={<CourseDetails />} />
+            <Route path="completed-courses/:courseCode/*" element={<CompletedCourseDetails />} />
           </Routes>
         </div>
       </main>
