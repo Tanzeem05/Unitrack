@@ -438,7 +438,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../../utils/api';
 import { BarChart3, TrendingUp, Award, Calendar, CheckCircle, XCircle, Clock, Target } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Area, ComposedChart } from 'recharts';
 
 const Results = ({ courseCode, courseId }) => {
   const [assignments, setAssignments] = useState([]);
@@ -653,108 +653,160 @@ const Results = ({ courseCode, courseId }) => {
         </div>
       )}
 
-      {/* Weekly Performance Graph */}
-      {weeklyPerformance && weeklyPerformance.weekly_performance && weeklyPerformance.weekly_performance.length > 0 && (
+      {/* Enhanced Weekly Performance Analysis */}
+      {weeklyPerformance && weeklyPerformance.weekly_performance && weeklyPerformance.weekly_performance.length > 0 ? (
+        <div className="bg-gray-800 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+              <TrendingUp className="w-6 h-6 text-blue-400" />
+              Performance Analytics
+            </h3>
+            <div className="flex gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                <span className="text-gray-300">Actual</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded border-2 border-green-500" style={{background: 'transparent'}}></div>
+                <span className="text-gray-300">Expected</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Main Performance Trend Chart - Two Charts Side by Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="bg-gray-900/50 rounded-lg p-6 border border-gray-700">
+              <h4 className="text-lg font-semibold text-white mb-4">Performance Trend Over Time</h4>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={weeklyPerformance.weekly_performance} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="actualGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                    <XAxis 
+                      dataKey="week_number" 
+                      stroke="#9CA3AF"
+                      tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                      tickLine={{ stroke: '#9CA3AF' }}
+                    />
+                    <YAxis 
+                      stroke="#9CA3AF"
+                      tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                      tickLine={{ stroke: '#9CA3AF' }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="actual_performance"
+                      stroke="#3B82F6"
+                      strokeWidth={3}
+                      fill="url(#actualGradient)"
+                      name="Actual Performance"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="expected_performance" 
+                      stroke="#10B981" 
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      name="Expected Performance"
+                      dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-gray-900/50 rounded-lg p-6 border border-gray-700">
+              <h4 className="text-lg font-semibold text-white mb-4">Weekly Performance Distribution</h4>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weeklyPerformance.weekly_performance} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.3}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                    <XAxis 
+                      dataKey="week_number" 
+                      stroke="#9CA3AF"
+                      tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                      tickLine={{ stroke: '#9CA3AF' }}
+                    />
+                    <YAxis 
+                      stroke="#9CA3AF"
+                      tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                      tickLine={{ stroke: '#9CA3AF' }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar 
+                      dataKey="performance_percentage" 
+                      name="Performance %"
+                      fill="url(#barGradient)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Weekly Topics Summary with Enhanced Styling */}
+          <div className="bg-gray-900/50 rounded-lg p-6 border border-gray-700">
+            <h4 className="text-lg font-semibold text-white mb-6">Weekly Topics Overview</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {weeklyPerformance.weekly_performance.map((week) => (
+                <div key={week.week_number} className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-4 border border-gray-600 hover:border-gray-500 transition-all duration-300">
+                  <div className="flex justify-between items-start mb-3">
+                    <h5 className="font-semibold text-white">Week {week.week_number}</h5>
+                    <span className={`text-sm font-bold px-2 py-1 rounded ${getGradeColor(week.performance_percentage)}`}>
+                      {week.performance_percentage.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-300 mb-3 line-clamp-2">{week.topic_title}</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>Points:</span>
+                      <span className="text-white">{week.actual_performance || 0}/{week.expected_performance || 0}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>Assignments:</span>
+                      <span className="text-white">{week.graded_assignments}/{week.total_assignments}</span>
+                    </div>
+                    <div className="w-full bg-gray-600 rounded-full h-2 mt-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          week.performance_percentage >= 90 ? 'bg-green-500' :
+                          week.performance_percentage >= 80 ? 'bg-blue-500' :
+                          week.performance_percentage >= 70 ? 'bg-yellow-500' :
+                          week.performance_percentage >= 60 ? 'bg-orange-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{ width: `${week.performance_percentage}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
         <div className="bg-gray-800 rounded-xl p-6">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
             <Calendar className="w-6 h-6 text-purple-400" />
             Weekly Performance Analysis
           </h3>
-          
-          {/* Performance Line Chart */}
-          <div className="mb-8 bg-gray-700 rounded-lg p-6">
-            <h4 className="text-lg font-semibold text-white mb-4">Performance Trend</h4>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weeklyPerformance.weekly_performance}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis 
-                    dataKey="week_number" 
-                    stroke="#9CA3AF"
-                    tick={{ fill: '#9CA3AF' }}
-                    label={{ value: 'Week', position: 'insideBottom', offset: -10, style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
-                  />
-                  <YAxis 
-                    stroke="#9CA3AF"
-                    tick={{ fill: '#9CA3AF' }}
-                    label={{ value: 'Points', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend 
-                    wrapperStyle={{ color: '#9CA3AF' }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="expected_performance" 
-                    stroke="#10B981" 
-                    strokeWidth={3}
-                    strokeDasharray="5 5"
-                    name="Expected Performance"
-                    dot={{ fill: '#10B981', strokeWidth: 2, r: 6 }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="actual_performance" 
-                    stroke="#3B82F6" 
-                    strokeWidth={3}
-                    name="Actual Performance"
-                    dot={{ fill: '#3B82F6', strokeWidth: 2, r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Performance Percentage Bar Chart */}
-          <div className="mb-8 bg-gray-700 rounded-lg p-6">
-            <h4 className="text-lg font-semibold text-white mb-4">Weekly Performance Percentage</h4>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyPerformance.weekly_performance}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis 
-                    dataKey="week_number" 
-                    stroke="#9CA3AF"
-                    tick={{ fill: '#9CA3AF' }}
-                    label={{ value: 'Week', position: 'insideBottom', offset: -10, style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
-                  />
-                  <YAxis 
-                    stroke="#9CA3AF"
-                    tick={{ fill: '#9CA3AF' }}
-                    label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar 
-                    dataKey="performance_percentage" 
-                    name="Performance %"
-                    fill="#8B5CF6"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Weekly Topics Summary */}
-          <div className="bg-gray-700 rounded-lg p-6">
-            <h4 className="text-lg font-semibold text-white mb-4">Weekly Topics Overview</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {weeklyPerformance.weekly_performance.map((week) => (
-                <div key={week.week_number} className="bg-gray-600 rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h5 className="font-semibold text-white">Week {week.week_number}</h5>
-                    <span className={`text-sm font-bold ${getGradeColor(week.performance_percentage)}`}>
-                      {week.performance_percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-300 mb-2">{week.topic_title}</p>
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>{week.actual_performance}/{week.expected_performance} pts</span>
-                    <span>{week.graded_assignments}/{week.total_assignments} assignments</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="text-center py-8 text-gray-400">
+            <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
+            <p className="text-lg">No weekly performance data available yet.</p>
+            <p className="text-sm">Weekly data will appear as assignments are completed and graded.</p>
           </div>
         </div>
       )}
