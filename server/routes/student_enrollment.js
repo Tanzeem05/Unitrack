@@ -3,89 +3,59 @@ import pool from '../db.js';
 
 const router = express.Router();
 
+console.log('✅ student_enrollment.js is loaded');
+
 
 // Enroll student to course
 router.post('/:id/enroll-student', async (req, res) => {
   const { id } = req.params;
   const { student_id } = req.body;
 
-    const query = 'INSERT INTO Student_Enrollment (course_id, student_id) VALUES ($1, $2) RETURNING *';
-    const values = [id, student_id];
-    let data;
-    let error;
-    try {
-        const result = await pool.query(query, values);
+  console.log('Enroll request:', { course_id: id, received_id: student_id });
 
-        if (result.rows.length === 0) {
-            return res.status(400).json({ error: 'Failed to enroll student' });
-        }
-        if (result.rows.length > 1) {
-            return res.status(500).json({ error: 'Multiple rows returned, unexpected behavior' });
-        }
-        // If the query was successful, extract the data
-        data = result.rows[0];
-    } catch (err) {
-        console.error('DB error:', err);
-        return res.status(500).json({ error: 'Internal server error' });
+  try {
+    // The frontend always sends user_id, so convert it to student_id
+    const userToStudentCheck = await pool.query(
+      'SELECT student_id FROM students WHERE user_id = $1',
+      [student_id]
+    );
+    
+    if (userToStudentCheck.rows.length === 0) {
+      return res.status(400).json({ error: 'Student not found' });
+    }
+    
+    const actualStudentId = userToStudentCheck.rows[0].student_id;
+    console.log(`Converting user_id ${student_id} to student_id ${actualStudentId}`);
+
+    // Check if student is already enrolled
+    const checkQuery = 'SELECT * FROM student_enrollment WHERE course_id = $1 AND student_id = $2';
+    const checkResult = await pool.query(checkQuery, [id, actualStudentId]);
+    
+    if (checkResult.rows.length > 0) {
+      return res.status(400).json({ error: 'Student is already enrolled in this course' });
     }
 
-  res.json({ message: 'Student enrolled to course' });
+    // If not enrolled, proceed with enrollment
+    const insertQuery = 'INSERT INTO student_enrollment (course_id, student_id) VALUES ($1, $2) RETURNING *';
+    const result = await pool.query(insertQuery, [id, actualStudentId]);
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Failed to enroll student' });
+    }
+
+    res.json({ 
+      message: 'Student enrolled successfully', 
+      data: result.rows[0] 
+    });
+
+  } catch (err) {
+    console.error('DB error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
-// router.post('/:id/enroll-student', async (req, res) => {
-//   const { id } = req.params;
-//   const { student_id } = req.body;
 
-//     const query = 'INSERT INTO Student_Enrollment (course_id, student_id) VALUES ($1, $2) RETURNING *';
-//     const values = [id, student_id];
-//     let data;
-//     let error;
-//     try {
-//         const result = await pool.query(query, values);
-
-//         if (result.rows.length === 0) {
-//             return res.status(400).json({ error: 'Failed to enroll student' });
-//         }
-//         if (result.rows.length > 1) {
-//             return res.status(500).json({ error: 'Multiple rows returned, unexpected behavior' });
-//         }
-//         // If the query was successful, extract the data
-//         data = result.rows[0];
-//     } catch (err) {
-//         console.error('DB error:', err);
-//         return res.status(500).json({ error: 'Internal server error' });
-//     }
-
-//   res.json({ message: 'Student enrolled to course' });
-// });
 
 // Enroll student to course using username and course code
-// router.post('/:course_code/enroll-student-username', async (req, res) => {
-//   const { course_code } = req.params;
-//   const { username } = req.body;
-
-//   const query = `
-//     INSERT INTO Student_Enrollment (course_id, student_id)
-//     VALUES (
-//       (SELECT course_id FROM Courses WHERE course_code = $1),
-//       (SELECT student_id FROM Students s
-//       JOIN Users u ON s.user_id = u.user_id
-//       WHERE u.username = $2)
-//     )
-//     RETURNING *
-//   `;
-//   const values = [course_code, username];
-//   try {
-//     const result = await pool.query(query, values);
-//     if (result.rows.length === 0) {
-//       return res.status(400).json({ error: 'Failed to enroll student' });
-//     }
-//     res.json({ message: 'Student enrolled to course' });
-//   } catch (err) {
-//     console.error('DB error:', err);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-
 router.post('/:course_code/enroll-student-username', async (req, res) => {
   const { course_code } = req.params;
   const { username } = req.body;
@@ -124,6 +94,7 @@ router.post('/:course_code/enroll-student-username', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // Get all enrolled students for a course and using username
 router.get('/:course_code/enrolled-students', async (req, res) => {

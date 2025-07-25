@@ -19,6 +19,7 @@ import courseWeeksRoutes from './routes/course_weeks.js';
 import adminRoutes from './routes/admin.js';
 import globalAnnouncementRoutes from './routes/global_announcements.js';
 
+
 dotenv.config();
 
 const app = express();

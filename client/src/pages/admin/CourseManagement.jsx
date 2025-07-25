@@ -1,10 +1,11 @@
 import React, { useState, useEffect, Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../utils/api';
 import Modal from './components/Modal';
-import CourseDetails from './CourseDetails';
 
 // Course Management Component
 const CourseManagement = () => {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +14,6 @@ const CourseManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
-  const [showCourseDetails, setShowCourseDetails] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagination, setPagination] = useState({
@@ -261,13 +261,7 @@ const CourseManagement = () => {
   };
 
   const showDetails = (course) => {
-    setSelectedCourse(course);
-    setShowCourseDetails(true);
-  };
-
-  const hideDetails = () => {
-    setSelectedCourse(null);
-    setShowCourseDetails(false);
+    navigate(`/admin/courses/${course.course_id}`);
   };
 
   const filteredCourses = (courses || []).filter(course => {
@@ -303,10 +297,6 @@ const CourseManagement = () => {
   }
 
   // Show course details if a course is selected
-  if (showCourseDetails && selectedCourse) {
-    return <CourseDetails course={selectedCourse} onBack={hideDetails} />;
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -757,13 +747,6 @@ const CourseManagement = () => {
             </button>
           </div>
         </div>
-      </Modal>
-
-      {/* Course Details Modal */}
-      <Modal show={showCourseDetails} onClose={hideDetails} title="Course Details" size="lg">
-        {selectedCourse && (
-          <CourseDetails course={selectedCourse} />
-        )}
       </Modal>
     </div>
   );

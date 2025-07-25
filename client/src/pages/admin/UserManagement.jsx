@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './components/Modal';
-import api from '../../utils/api';
+import { api } from '../../utils/api';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -35,8 +35,12 @@ const UserManagement = () => {
         user_type: 'student',
         admin_level: '',
         specialization: '',
-        batch_year: ''
+        batch_year: '',
+        department_id: ''
     });
+
+    // Departments for dropdown
+    const [departments, setDepartments] = useState([]);
 
     // User statistics
     const [userStats, setUserStats] = useState({
@@ -102,6 +106,17 @@ const UserManagement = () => {
         }
     };
 
+    // Fetch departments for dropdown
+    const fetchDepartments = async () => {
+        try {
+            const response = await api('/admin/departments');
+            setDepartments(response || []);
+        } catch (err) {
+            console.error('Error fetching departments:', err);
+            setDepartments([]);
+        }
+    };
+
     // Handle search
     const handleSearch = async (e) => {
         e.preventDefault();
@@ -130,7 +145,8 @@ const UserManagement = () => {
             user_type: 'student',
             admin_level: '',
             specialization: '',
-            batch_year: ''
+            batch_year: '',
+            department_id: ''
         });
     };
 
@@ -244,7 +260,8 @@ const UserManagement = () => {
             user_type: user.user_type || 'student',
             admin_level: user.admin_level || '',
             specialization: user.specialization || '',
-            batch_year: user.batch_year || ''
+            batch_year: user.batch_year || '',
+            department_id: user.department_id || ''
         });
         setIsEditModalOpen(true);
     };
@@ -274,6 +291,7 @@ const UserManagement = () => {
     useEffect(() => {
         fetchUsers();
         fetchUserStats();
+        fetchDepartments();
     }, []);
 
     return (
@@ -693,22 +711,43 @@ const UserManagement = () => {
                         )}
 
                         {formData.user_type === 'student' && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Batch Year *
-                                </label>
-                                <input
-                                    type="number"
-                                    name="batch_year"
-                                    value={formData.batch_year}
-                                    onChange={handleInputChange}
-                                    required
-                                    min="2020"
-                                    max="2030"
-                                    placeholder="e.g., 2024"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Department *
+                                    </label>
+                                    <select
+                                        name="department_id"
+                                        value={formData.department_id}
+                                        onChange={handleInputChange}
+                                        required
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="">Select Department</option>
+                                        {departments.map((dept) => (
+                                            <option key={dept.department_id} value={dept.department_id}>
+                                                {dept.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Batch Year *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        name="batch_year"
+                                        value={formData.batch_year}
+                                        onChange={handleInputChange}
+                                        required
+                                        min="2020"
+                                        max="2030"
+                                        placeholder="e.g., 2024"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                            </>
                         )}
 
                         <div className="flex justify-end space-x-3 pt-4">
@@ -870,22 +909,43 @@ const UserManagement = () => {
                         )}
 
                         {formData.user_type === 'student' && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Batch Year *
-                                </label>
-                                <input
-                                    type="number"
-                                    name="batch_year"
-                                    value={formData.batch_year}
-                                    onChange={handleInputChange}
-                                    required
-                                    min="2020"
-                                    max="2030"
-                                    placeholder="e.g., 2024"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Department *
+                                    </label>
+                                    <select
+                                        name="department_id"
+                                        value={formData.department_id}
+                                        onChange={handleInputChange}
+                                        required
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="">Select Department</option>
+                                        {departments.map((dept) => (
+                                            <option key={dept.department_id} value={dept.department_id}>
+                                                {dept.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Batch Year *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        name="batch_year"
+                                        value={formData.batch_year}
+                                        onChange={handleInputChange}
+                                        required
+                                        min="2020"
+                                        max="2030"
+                                        placeholder="e.g., 2024"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                            </>
                         )}
 
                         <div className="flex justify-end space-x-3 pt-4">

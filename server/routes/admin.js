@@ -474,6 +474,59 @@ router.delete('/courses/:id', async (req, res) => {
             // Set the session variable for the trigger
             await client.query('SELECT set_config($1, $2, false)', ['app.current_admin_id', adminId.toString()]);
 
+            // First, delete all related records to avoid foreign key constraint violations
+            
+            // Delete student enrollments
+            await client.query('DELETE FROM student_enrollment WHERE course_id = $1', [id]);
+            
+            // Delete course teachers
+            await client.query('DELETE FROM course_teachers WHERE course_id = $1', [id]);
+            
+            // Delete course weeks/content (if exists)
+            try {
+                await client.query('DELETE FROM course_weeks WHERE course_id = $1', [id]);
+            } catch (err) {
+                // Table might not exist, continue
+                console.log('course_weeks table not found, skipping...');
+            }
+            
+            // Delete course resources
+            try {
+                await client.query('DELETE FROM course_resources WHERE course_id = $1', [id]);
+            } catch (err) {
+                // Table might not exist, continue
+                console.log('course_resources table not found, skipping...');
+            }
+            
+            // Delete assignment submissions first (due to foreign key dependencies)
+            try {
+                await client.query('DELETE FROM assignment_submissions WHERE assignment_id IN (SELECT assignment_id FROM assignments WHERE course_id = $1)', [id]);
+            } catch (err) {
+                console.log('assignment_submissions table not found, skipping...');
+            }
+            
+            // Delete assignments related to this course
+            try {
+                await client.query('DELETE FROM assignments WHERE course_id = $1', [id]);
+            } catch (err) {
+                console.log('assignments table not found, skipping...');
+            }
+            
+            // Delete announcements related to this course
+            try {
+                await client.query('DELETE FROM announcements WHERE course_id = $1', [id]);
+            } catch (err) {
+                console.log('announcements table not found, skipping...');
+            }
+            
+            // Delete admin logs related to this course
+            try {
+                await client.query('DELETE FROM admin_logs WHERE affected_course_id = $1', [id]);
+            } catch (err) {
+                console.log('admin_logs table not found, skipping...');
+            }
+            
+            // Finally, delete the course itself
             const query = 'DELETE FROM courses WHERE course_id = $1 RETURNING *';
             const result = await client.query(query, [id]);
             
@@ -484,7 +537,10 @@ router.delete('/courses/:id', async (req, res) => {
                 return res.status(404).json({ error: 'Course not found' });
             }
 
-            res.json({ message: 'Course deleted successfully' });
+            res.json({ 
+                message: 'Course and all related data deleted successfully',
+                deletedCourse: result.rows[0]
+            });
         } catch (queryErr) {
             await client.query('ROLLBACK');
             client.release();
@@ -539,10 +595,10 @@ router.get('/users', async (req, res) => {
 
         if (search) {
             whereClause += `WHERE (
-                LOWER(first_name) LIKE LOWER($${paramIndex}) OR 
-                LOWER(last_name) LIKE LOWER($${paramIndex}) OR 
-                LOWER(email) LIKE LOWER($${paramIndex}) OR 
-                LOWER(username) LIKE LOWER($${paramIndex})
+                LOWER(u.first_name) LIKE LOWER($${paramIndex}) OR 
+                LOWER(u.last_name) LIKE LOWER($${paramIndex}) OR 
+                LOWER(u.email) LIKE LOWER($${paramIndex}) OR 
+                LOWER(u.username) LIKE LOWER($${paramIndex})
             )`;
             queryParams.push(`%${search}%`);
             paramIndex++;
@@ -550,16 +606,16 @@ router.get('/users', async (req, res) => {
 
         if (userType) {
             if (whereClause) {
-                whereClause += ` AND user_type = $${paramIndex}`;
+                whereClause += ` AND u.user_type = $${paramIndex}`;
             } else {
-                whereClause += `WHERE user_type = $${paramIndex}`;
+                whereClause += `WHERE u.user_type = $${paramIndex}`;
             }
             queryParams.push(userType);
             paramIndex++;
         }
 
         // Get total count for pagination
-        const countQuery = `SELECT COUNT(*) as total FROM users ${whereClause}`;
+        const countQuery = `SELECT COUNT(*) as total FROM users u LEFT JOIN department d ON u.department_id = d.department_id ${whereClause}`;
         const countResult = await pool.query(countQuery, queryParams);
         const totalUsers = parseInt(countResult.rows[0].total);
         const totalPages = Math.ceil(totalUsers / limit);
@@ -569,26 +625,29 @@ router.get('/users', async (req, res) => {
         // Get users with pagination
         const usersQuery = `
             SELECT 
-                user_id,
-                username,
-                email,
-                first_name,
-                last_name,
-                user_type,
-                admin_level,
-                specialization,
-                batch_year,
-                created_at,
-                updated_at,
+                u.user_id,
+                u.username,
+                u.email,
+                u.first_name,
+                u.last_name,
+                u.user_type,
+                u.admin_level,
+                u.specialization,
+                u.batch_year,
+                u.department_id,
+                d.name as department_name,
+                u.created_at,
+                u.updated_at,
                 CASE 
-                    WHEN user_type = 'admin' THEN 'Administrator'
-                    WHEN user_type = 'teacher' THEN 'Teacher'
-                    WHEN user_type = 'student' THEN 'Student'
+                    WHEN u.user_type = 'admin' THEN 'Administrator'
+                    WHEN u.user_type = 'teacher' THEN 'Teacher'
+                    WHEN u.user_type = 'student' THEN 'Student'
                     ELSE 'Unknown'
                 END as role_display
-            FROM users 
+            FROM users u
+            LEFT JOIN department d ON u.department_id = d.department_id
             ${whereClause}
-            ORDER BY created_at DESC
+            ORDER BY u.created_at DESC
             LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
         `;
 
@@ -627,19 +686,22 @@ router.get('/users/:id', async (req, res) => {
         
         const query = `
             SELECT 
-                user_id,
-                username,
-                email,
-                first_name,
-                last_name,
-                user_type,
-                admin_level,
-                specialization,
-                batch_year,
-                created_at,
-                updated_at
-            FROM users 
-            WHERE user_id = $1
+                u.user_id,
+                u.username,
+                u.email,
+                u.first_name,
+                u.last_name,
+                u.user_type,
+                u.admin_level,
+                u.specialization,
+                u.batch_year,
+                u.department_id,
+                d.name as department_name,
+                u.created_at,
+                u.updated_at
+            FROM users u
+            LEFT JOIN department d ON u.department_id = d.department_id
+            WHERE u.user_id = $1
         `;
 
         const result = await pool.query(query, [id]);
@@ -667,7 +729,8 @@ router.post('/users', async (req, res) => {
             user_type,
             admin_level,
             specialization,
-            batch_year
+            batch_year,
+            department_id
         } = req.body;
 
         // Validate required fields
@@ -684,6 +747,9 @@ router.post('/users', async (req, res) => {
         }
         if (user_type === 'student' && !batch_year) {
             return res.status(400).json({ error: 'Batch year is required for student users' });
+        }
+        if (user_type === 'student' && !department_id) {
+            return res.status(400).json({ error: 'Department is required for student users' });
         }
 
         // Check if username already exists
@@ -721,9 +787,9 @@ router.post('/users', async (req, res) => {
             await client.query('SELECT set_config($1, $2, false)', ['app.current_admin_id', adminId.toString()]);
 
             const query = `
-                INSERT INTO users (username, password, email, first_name, last_name, user_type, admin_level, specialization, batch_year)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                RETURNING user_id, username, email, first_name, last_name, user_type, admin_level, specialization, batch_year, created_at
+                INSERT INTO users (username, password, email, first_name, last_name, user_type, admin_level, specialization, batch_year, department_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                RETURNING user_id, username, email, first_name, last_name, user_type, admin_level, specialization, batch_year, department_id, created_at
             `;
 
             const values = [
@@ -735,7 +801,8 @@ router.post('/users', async (req, res) => {
                 user_type,
                 admin_level || null,
                 specialization || null,
-                batch_year || null // Keep as string, don't convert to integer
+                batch_year || null,
+                department_id || null
             ];
 
             const result = await client.query(query, values);
@@ -772,6 +839,7 @@ router.put('/users/:id', async (req, res) => {
             admin_level,
             specialization,
             batch_year,
+            department_id,
             password
         } = req.body;
 
@@ -834,21 +902,21 @@ router.put('/users/:id', async (req, res) => {
                     UPDATE users 
                     SET username = $1, password = $2, email = $3, first_name = $4, 
                         last_name = $5, user_type = $6, admin_level = $7, 
-                        specialization = $8, batch_year = $9, updated_at = CURRENT_TIMESTAMP, updated_by = $10
-                    WHERE user_id = $11
+                        specialization = $8, batch_year = $9, department_id = $10, updated_at = CURRENT_TIMESTAMP, updated_by = $11
+                    WHERE user_id = $12
                     RETURNING *
                 `;
-                values = [username, hashedPassword, email, first_name, last_name, user_type, admin_level || null, specialization || null, batch_year || null, id];
+                values = [username, hashedPassword, email, first_name, last_name, user_type, admin_level || null, specialization || null, batch_year || null, department_id || null, adminId, id];
             } else {
                 query = `
                     UPDATE users 
                     SET username = $1, email = $2, first_name = $3, 
                         last_name = $4, user_type = $5, admin_level = $6, 
-                        specialization = $7, batch_year = $8, updated_at = CURRENT_TIMESTAMP, updated_by = $9
-                    WHERE user_id = $10
+                        specialization = $7, batch_year = $8, department_id = $9, updated_at = CURRENT_TIMESTAMP, updated_by = $10
+                    WHERE user_id = $11
                     RETURNING *
                 `;
-                values = [username, email, first_name, last_name, user_type, admin_level || null, specialization || null, batch_year || null, adminId, id];
+                values = [username, email, first_name, last_name, user_type, admin_level || null, specialization || null, batch_year || null, department_id || null, adminId, id];
             }
 
             const result = await client.query(query, values);
@@ -1186,6 +1254,25 @@ router.get('/global-announcements/stats', async (req, res) => {
     } catch (err) {
         console.error('Error fetching announcement statistics:', err);
         res.status(500).json({ error: 'Failed to fetch announcement statistics' });
+    }
+});
+
+// Get all departments for dropdown (Admin only)
+router.get('/departments', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                department_id, 
+                name
+            FROM department 
+            ORDER BY name
+        `;
+
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching departments:', err);
+        res.status(500).json({ error: 'Failed to fetch departments' });
     }
 });
 

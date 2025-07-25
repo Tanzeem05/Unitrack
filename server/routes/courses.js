@@ -185,6 +185,7 @@ router.delete('/:id', async (req, res) => {
   res.json({ message: 'Course deleted successfully' });
 });
 
+
 // Get all current courses for a user
 router.get('/user/:userName/current', async (req, res) => {
   const { userName } = req.params;
@@ -321,19 +322,80 @@ router.get('/:id/teachers', async (req, res) => {
 // Get available students not enrolled in this course
 router.get('/:id/available-students', async (req, res) => {
   const { id } = req.params;
+  const { session, department_id, search } = req.query;
   
   try {
-    const query = `
-      SELECT u.user_id, u.first_name, u.last_name, u.email, s.batch_year
+    let query = `
+      SELECT u.user_id, u.first_name, u.last_name, u.email, d.name as department_name, s.batch_year, s.department_id,
+             CASE WHEN se.student_id IS NOT NULL THEN true ELSE false END as is_enrolled
       FROM Students s
       JOIN Users u ON s.user_id = u.user_id
-      WHERE s.student_id NOT IN (
-        SELECT student_id FROM Student_Enrollment WHERE course_id = $1
-      )
-      ORDER BY u.first_name, u.last_name
+      LEFT JOIN department d ON s.department_id = d.department_id
+      LEFT JOIN Student_Enrollment se ON s.student_id = se.student_id AND se.course_id = $1
+      WHERE 1=1
     `;
-    const result = await pool.query(query, [id]);
+    
+    const queryParams = [id];
+    let paramCount = 1;
+    
+    // Add filters if provided
+    if (session) {
+      paramCount++;
+      query += ` AND s.batch_year = $${paramCount}`;
+      queryParams.push(session);
+    }
+    
+    if (department_id) {
+      paramCount++;
+      query += ` AND s.department_id = $${paramCount}`;
+      queryParams.push(department_id);
+    }
+    
+    if (search) {
+      paramCount++;
+      query += ` AND (LOWER(u.first_name) LIKE LOWER($${paramCount}) OR LOWER(u.last_name) LIKE LOWER($${paramCount}) OR LOWER(u.email) LIKE LOWER($${paramCount}))`;
+      queryParams.push(`%${search}%`);
+    }
+    
+    query += ` ORDER BY is_enrolled ASC, u.first_name, u.last_name`;
+    
+    const result = await pool.query(query, queryParams);
     res.json(result.rows);
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get student filter options (sessions and departments)
+router.get('/:id/student-filter-options', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // Get available sessions (batch years) for all students
+    const sessionsQuery = `
+      SELECT DISTINCT s.batch_year 
+      FROM Students s
+      WHERE s.batch_year IS NOT NULL
+      ORDER BY s.batch_year DESC
+    `;
+    
+    // Get available departments for students not enrolled in this course
+    const departmentsQuery = `
+      SELECT DISTINCT d.department_id, d.name 
+      FROM department d
+      ORDER BY d.name
+    `;
+    
+    const [sessionsResult, departmentsResult] = await Promise.all([
+      pool.query(sessionsQuery),
+      pool.query(departmentsQuery)
+    ]);
+    
+    res.json({
+      sessions: sessionsResult.rows.map(row => row.batch_year),
+      departments: departmentsResult.rows
+    });
   } catch (err) {
     console.error('DB error:', err);
     res.status(500).json({ error: err.message });

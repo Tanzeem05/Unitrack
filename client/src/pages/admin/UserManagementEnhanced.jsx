@@ -14,6 +14,7 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [departments, setDepartments] = useState([]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -31,14 +32,31 @@ const UserManagement = () => {
     password: '',
     admin_level: '',
     specialization: '',
-    batch_year: ''
+    batch_year: '',
+    department_id: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
+    fetchDepartments();
   }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      console.log('Fetching departments...');
+      const data = await api('/admin/departments');
+      console.log('Departments fetched:', data);
+      console.log('Setting departments state to:', data);
+      setDepartments(data);
+    } catch (err) {
+      console.error('Error fetching departments:', err);
+    }
+  };
+
+  // Debug departments state
+  console.log('Current departments state:', departments);
 
   const fetchUsers = async (page = 1) => {
     try {
@@ -160,6 +178,9 @@ const UserManagement = () => {
     if (formData.user_type === 'student' && !formData.batch_year.trim()) {
       errors.batch_year = 'Batch year is required';
     }
+    if (formData.user_type === 'student' && !formData.department_id) {
+      errors.department_id = 'Department is required for students';
+    }
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -277,7 +298,8 @@ const UserManagement = () => {
       password: '',
       admin_level: '',
       specialization: '',
-      batch_year: ''
+      batch_year: '',
+      department_id: ''
     });
     setFormErrors({});
     setSelectedUser(null);
@@ -316,7 +338,8 @@ const UserManagement = () => {
       password: '', // Don't populate password for editing
       admin_level: user.admin_level || '',
       specialization: user.specialization || '',
-      batch_year: user.batch_year || ''
+      batch_year: user.batch_year || '',
+      department_id: user.department_id || ''
     });
     setFormErrors({});
     setShowEditModal(true);
@@ -701,20 +724,43 @@ const UserManagement = () => {
           )}
 
           {formData.user_type === 'student' && (
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Batch Year *</label>
-              <input
-                type="text"
-                value={formData.batch_year}
-                onChange={(e) => setFormData({...formData, batch_year: e.target.value})}
-                placeholder="e.g., 2024"
-                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
-                  formErrors.batch_year ? 'border-red-500' : 'border-gray-600'
-                }`}
-              />
-              {formErrors.batch_year && (
-                <p className="text-red-400 text-xs mt-1">{formErrors.batch_year}</p>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Batch Year *</label>
+                <input
+                  type="text"
+                  value={formData.batch_year}
+                  onChange={(e) => setFormData({...formData, batch_year: e.target.value})}
+                  placeholder="e.g., 2024"
+                  className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
+                    formErrors.batch_year ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                />
+                {formErrors.batch_year && (
+                  <p className="text-red-400 text-xs mt-1">{formErrors.batch_year}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Department *</label>
+                <select
+                  value={formData.department_id}
+                  onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                  className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
+                    formErrors.department_id ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map((dept) => (
+                    <option key={dept.department_id} value={dept.department_id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.department_id && (
+                  <p className="text-red-400 text-xs mt-1">{formErrors.department_id}</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -882,20 +928,43 @@ const UserManagement = () => {
           )}
 
           {formData.user_type === 'student' && (
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Batch Year *</label>
-              <input
-                type="text"
-                value={formData.batch_year}
-                onChange={(e) => setFormData({...formData, batch_year: e.target.value})}
-                placeholder="e.g., 2024"
-                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
-                  formErrors.batch_year ? 'border-red-500' : 'border-gray-600'
-                }`}
-              />
-              {formErrors.batch_year && (
-                <p className="text-red-400 text-xs mt-1">{formErrors.batch_year}</p>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Batch Year *</label>
+                <input
+                  type="text"
+                  value={formData.batch_year}
+                  onChange={(e) => setFormData({...formData, batch_year: e.target.value})}
+                  placeholder="e.g., 2024"
+                  className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
+                    formErrors.batch_year ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                />
+                {formErrors.batch_year && (
+                  <p className="text-red-400 text-xs mt-1">{formErrors.batch_year}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Department *</label>
+                <select
+                  value={formData.department_id}
+                  onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                  className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
+                    formErrors.department_id ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map((dept) => (
+                    <option key={dept.department_id} value={dept.department_id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.department_id && (
+                  <p className="text-red-400 text-xs mt-1">{formErrors.department_id}</p>
+                )}
+              </div>
             </div>
           )}
 
