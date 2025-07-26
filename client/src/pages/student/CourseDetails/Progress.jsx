@@ -1484,7 +1484,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../../utils/api';
 import { BarChart3, TrendingUp, Calendar, CheckCircle, XCircle, Clock, Target, AlertCircle } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Area, AreaChart, ComposedChart } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Area, AreaChart, ComposedChart, PieChart, Pie, Cell } from 'recharts';
 
 const Progress = ({ courseCode, courseId }) => {
   const [assignments, setAssignments] = useState([]);
@@ -1740,7 +1740,8 @@ const Progress = ({ courseCode, courseId }) => {
       
       const pendingAssignments = assignmentsData.filter(assignment => {
         const submission = submissionsMap[assignment.assignment_id];
-        return !submission || submission.points_earned === null;
+        // Only count assignments that have NOT been submitted at all
+        return !submission;
       }).length;
       
       let totalPossiblePoints = 0;
@@ -1807,6 +1808,60 @@ const Progress = ({ courseCode, courseId }) => {
     }
   }, [safeNumber, safeDate]);
 
+  // Calculate assignment status data for pie chart
+  const getAssignmentStatusData = useMemo(() => {
+    if (!assignments.length) return [];
+
+    const today = new Date();
+    let submitted = 0;
+    let due = 0;
+    let overdue = 0;
+
+    assignments.forEach(assignment => {
+      const submission = submissions[assignment.assignment_id];
+      const dueDate = safeDate(assignment.due_date);
+      
+      if (submission) {
+        // Assignment has been submitted
+        submitted++;
+      } else if (dueDate) {
+        if (dueDate < today) {
+          // Assignment is overdue
+          overdue++;
+        } else {
+          // Assignment is due but not submitted
+          due++;
+        }
+      } else {
+        // No due date, consider as due
+        due++;
+      }
+    });
+
+    return [
+      { name: 'Submitted', value: submitted, color: '#10B981' },
+      { name: 'Due', value: due, color: '#F59E0B' },
+      { name: 'Overdue', value: overdue, color: '#EF4444' }
+    ].filter(item => item.value > 0); // Only show categories with values > 0
+  }, [assignments, submissions, safeDate]);
+
+  // Custom tooltip for pie chart
+  const PieTooltip = useCallback(({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0];
+      return (
+        <div className="bg-gray-900 border border-gray-600 p-3 rounded-lg shadow-xl backdrop-blur-sm">
+          <p className="text-white font-semibold">{data.name}</p>
+          <p className="text-gray-300">{data.value} assignment{data.value !== 1 ? 's' : ''}</p>
+          <p className="text-gray-400 text-sm">
+            {assignments.length > 0 ? `${((data.value / assignments.length) * 100).toFixed(1)}%` : '0%'} of total
+          </p>
+        </div>
+      );
+    }
+    return null;
+  }, [assignments.length]);
+
   // Memoized helper functions
   const getGradeColor = useCallback((percentage) => {
     const safePercentage = safeNumber(percentage);
@@ -1820,7 +1875,8 @@ const Progress = ({ courseCode, courseId }) => {
   const getPendingAssignments = useMemo(() => {
     return assignments.filter(assignment => {
       const submission = submissions[assignment.assignment_id];
-      return !submission || submission.points_earned === null;
+      // Only show assignments that have NOT been submitted at all
+      return !submission;
     });
   }, [assignments, submissions]);
 
@@ -2086,12 +2142,12 @@ const Progress = ({ courseCode, courseId }) => {
           <div className="bg-gradient-to-br from-red-900/50 to-red-800/30 rounded-xl p-6 border border-red-500/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-red-300 text-sm font-medium">Pending Assignments</p>
+                <p className="text-red-300 text-sm font-medium">Unsubmitted</p>
                 <p className="text-3xl font-bold text-white">
                   {safeNumber(courseStats.pendingAssignments)}
                 </p>
                 <p className="text-red-400 text-sm">
-                  assignments pending
+                  assignments not submitted
                 </p>
               </div>
               <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
@@ -2104,6 +2160,112 @@ const Progress = ({ courseCode, courseId }) => {
             <BarChart3 className="w-16 h-16 mx-auto mb-4 opacity-50" />
             <p className="text-lg">Course statistics will appear here</p>
             <p className="text-sm">Loading assignment and submission data...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Assignment Status Pie Chart */}
+      {assignments.length > 0 && (
+        <div className="bg-gray-800 rounded-xl p-6">
+          <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+            <BarChart3 className="w-6 h-6 text-purple-400" />
+            Assignment Status Overview
+          </h3>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            {/* Pie Chart */}
+            <div className="flex justify-center">
+              <div className="w-80 h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={getAssignmentStatusData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={120}
+                      innerRadius={60}
+                      paddingAngle={5}
+                      dataKey="value"
+                      stroke="#374151"
+                      strokeWidth={2}
+                    >
+                      {getAssignmentStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<PieTooltip />} />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36}
+                      formatter={(value, entry) => (
+                        <span style={{ color: entry.color, fontWeight: 'bold' }}>
+                          {value}
+                        </span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Status Cards */}
+            <div className="space-y-4">
+              {getAssignmentStatusData.map((item, index) => {
+                const percentage = assignments.length > 0 ? (item.value / assignments.length) * 100 : 0;
+                return (
+                  <div 
+                    key={item.name} 
+                    className="bg-gray-700 rounded-lg p-4 border-l-4 hover:bg-gray-600 transition-colors duration-300"
+                    style={{ borderLeftColor: item.color }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        ></div>
+                        <div>
+                          <h4 className="text-lg font-semibold text-white">{item.name}</h4>
+                          <p className="text-sm text-gray-400">
+                            {item.name === 'Submitted' && 'Completed assignments'}
+                            {item.name === 'Due' && 'Pending assignments'}
+                            {item.name === 'Overdue' && 'Past due assignments'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-white">{item.value}</div>
+                        <div className="text-sm text-gray-400">{percentage.toFixed(1)}%</div>
+                      </div>
+                    </div>
+                    
+                    {/* Progress bar for visual representation */}
+                    <div className="mt-3">
+                      <div className="w-full bg-gray-600 rounded-full h-2">
+                        <div 
+                          className="h-2 rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${percentage}%`,
+                            backgroundColor: item.color
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {/* Total Summary */}
+              <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-600">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Target className="w-5 h-5 text-blue-400" />
+                    <span className="text-white font-medium">Total Assignments</span>
+                  </div>
+                  <span className="text-2xl font-bold text-blue-400">{assignments.length}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -2297,10 +2459,15 @@ const Progress = ({ courseCode, courseId }) => {
 
       {/* Pending Assignments Section with improved data handling */}
       <div className="bg-gray-800 rounded-xl p-6">
-        <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-          <AlertCircle className="w-6 h-6 text-red-400" />
-          Pending Assignments
-        </h3>
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
+            <AlertCircle className="w-6 h-6 text-red-400" />
+            Unsubmitted Assignments
+          </h3>
+          <p className="text-sm text-gray-400">
+            Assignments that haven't been submitted yet (including overdue assignments)
+          </p>
+        </div>
 
         {getPendingAssignments.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
@@ -2355,7 +2522,7 @@ const Progress = ({ courseCode, courseId }) => {
             )}
 
             <div>
-              <h4 className="text-lg font-semibold text-white mb-4">All Pending Assignments</h4>
+              <h4 className="text-lg font-semibold text-white mb-4">All Unsubmitted Assignments</h4>
               <div className="space-y-3">
                 {getPendingAssignments.map((assignment) => {
                   const dueDate = safeDate(assignment.due_date);
