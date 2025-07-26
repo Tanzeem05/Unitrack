@@ -13,14 +13,20 @@ const CurrentCourses = () => {
     const fetchCourses = async () => {
       if (!username) return;
       try {
+        console.log(`Fetching courses for username: ${username}`);
         const data = await api(`/courses/user/${username}/current`, 'GET');
+        console.log('API response:', data);
+        
         if (data.error) {
+          console.log('API returned error:', data.error);
           setCourses([]);
         } else {
-          setCourses(data);
+          console.log(`Received ${Array.isArray(data) ? data.length : 0} courses`);
+          setCourses(Array.isArray(data) ? data : []);
         }
       } catch (error) {
         console.error('Error fetching current courses:', error);
+        setCourses([]);
       } finally {
         setLoading(false);
       }
@@ -34,7 +40,40 @@ const CurrentCourses = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-white text-lg">Loading your courses...</div>
+      </div>
+    );
+  }
+
+  if (courses.length === 0) {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-white">Your Active Courses</h3>
+            <p className="text-gray-300 mt-1">Continue your learning journey</p>
+          </div>
+          <div className="text-right">
+            <p className="text-3xl font-bold text-purple-400">0</p>
+            <p className="text-sm text-gray-400">Active</p>
+          </div>
+        </div>
+        
+        <div className="text-center py-12">
+          <div className="bg-purple-900 bg-opacity-20 backdrop-blur-lg rounded-2xl shadow-2xl border border-purple-400 border-opacity-30 p-8">
+            <h4 className="text-xl font-bold text-white mb-4">No Active Courses</h4>
+            <p className="text-gray-300 mb-6">
+              You are not currently enrolled in any active courses. Contact your administrator to get enrolled in courses.
+            </p>
+            <div className="text-sm text-gray-400">
+              Username: {username}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -64,39 +103,58 @@ const CurrentCourses = () => {
               </div>
             )}
             <div className="p-6">
-              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-purple-300 transition-colors">
+              <h4 className="text-xl font-bold text-white mb-1 group-hover:text-purple-300 transition-colors">
                 {course.course_code}
               </h4>
+              {course.course_name && (
+                <p className="text-gray-400 text-sm mb-3">{course.course_name}</p>
+              )}
               <p className="text-gray-300 mb-4 flex items-center">
                 <User className="w-4 h-4 mr-2 text-purple-400" />
-                {course.instructor}
+                <span className="font-medium">{course.instructor}</span>
               </p>
 
               <div className="mb-4">
                 <div className="flex justify-between text-sm text-gray-300 mb-2">
                   <span className="font-medium">Progress</span>
-                  <span className="font-bold text-purple-400">{course.progress}%</span>
+                  <div className="text-right">
+                    <span className="font-bold text-purple-400">{course.progress || 0}%</span>
+                    {course.weeks_passed !== undefined && course.total_weeks > 0 && (
+                      <div className="text-xs text-gray-400">
+                        Week {course.weeks_passed} of {course.total_weeks}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
                   <div
                     className="bg-gradient-to-r from-purple-500 to-indigo-500 h-3 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${course.progress}%` }}
+                    style={{ width: `${course.progress || 0}%` }}
                   ></div>
                 </div>
               </div>
 
               <div className="flex items-center text-sm text-gray-400 mb-6">
                 <Calendar className="w-4 h-4 mr-2 text-purple-400" />
-                {course.nextClass ? (
+                {course.next_due_date ? (
                   <span>
-                    Next: {new Date(course.nextClass).toLocaleDateString('en-US', {
+                    Next Assignment: {new Date(course.next_due_date).toLocaleDateString('en-US', {
                       weekday: 'short',
                       month: 'short',
                       day: 'numeric',
                     })}
+                    {course.upcoming_count > 1 && (
+                      <span className="ml-2 px-2 py-1 bg-purple-600 text-white text-xs rounded-full">
+                        +{course.upcoming_count - 1} more
+                      </span>
+                    )}
+                  </span>
+                ) : course.upcoming_count > 0 ? (
+                  <span>
+                    {course.upcoming_count} upcoming assignment{course.upcoming_count > 1 ? 's' : ''}
                   </span>
                 ) : (
-                  <span>No upcoming class</span>
+                  <span>No upcoming assignments</span>
                 )}
               </div>
 

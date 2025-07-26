@@ -175,7 +175,8 @@ router.get('/course_code/:course_code', async (req, res) => {
   const { course_code } = req.params;
   const query = `SELECT a.* FROM assignments a
                  JOIN courses c ON a.course_id = c.course_id
-                  WHERE c.course_code = $1`;
+                  WHERE c.course_code = $1
+                  ORDER BY a.created_at DESC`;
   const values = [course_code];
   let data;
   let error;
