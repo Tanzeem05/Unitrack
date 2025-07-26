@@ -195,10 +195,9 @@ export default function CoursesPage() {
                 </p>
               )}
 
-              {/* Progress section */}
               <div className="mb-4">
                 <div className="flex justify-between text-sm text-gray-300 mb-2">
-                  <span className="font-medium">Course Progress</span>
+                  <span className="font-medium">Progress</span>
                   <div className="text-right">
                     <span className="font-bold text-purple-400">{course.progress || 0}%</span>
                     {course.weeks_passed !== undefined && course.total_weeks > 0 && (
