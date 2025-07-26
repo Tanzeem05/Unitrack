@@ -198,21 +198,21 @@ const GlobalAnnouncementManagement = () => {
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'urgent': return 'bg-red-500 bg-opacity-20 text-red-400';
-      case 'high': return 'bg-orange-500 bg-opacity-20 text-orange-400';
-      case 'normal': return 'bg-blue-500 bg-opacity-20 text-blue-400';
-      case 'low': return 'bg-gray-500 bg-opacity-20 text-gray-400';
-      default: return 'bg-gray-500 bg-opacity-20 text-gray-400';
+      case 'urgent': return 'bg-red-600 text-white border border-red-500';
+      case 'high': return 'bg-orange-600 text-white border border-orange-500';
+      case 'normal': return 'bg-blue-600 text-white border border-blue-500';
+      case 'low': return 'bg-gray-600 text-white border border-gray-500';
+      default: return 'bg-gray-600 text-white border border-gray-500';
     }
   };
 
   const getAudienceColor = (audience) => {
     switch (audience) {
-      case 'all': return 'bg-purple-500 bg-opacity-20 text-purple-400';
-      case 'students': return 'bg-green-500 bg-opacity-20 text-green-400';
-      case 'teachers': return 'bg-blue-500 bg-opacity-20 text-blue-400';
-      case 'admins': return 'bg-red-500 bg-opacity-20 text-red-400';
-      default: return 'bg-gray-500 bg-opacity-20 text-gray-400';
+      case 'all': return 'bg-purple-600 text-white border border-purple-500';
+      case 'students': return 'bg-green-600 text-white border border-green-500';
+      case 'teachers': return 'bg-blue-600 text-white border border-blue-500';
+      case 'admins': return 'bg-red-600 text-white border border-red-500';
+      default: return 'bg-gray-600 text-white border border-gray-500';
     }
   };
 

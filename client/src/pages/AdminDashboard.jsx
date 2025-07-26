@@ -18,7 +18,6 @@ const AdminDashboard = () => {
     if (path.includes('/admin/users')) return 'users';
     if (path.includes('/admin/courses')) return 'courses';
     if (path.includes('/admin/announcements')) return 'announcements';
-    if (path.includes('/admin/settings')) return 'settings';
     return 'dashboard';
   };
 
@@ -28,8 +27,7 @@ const AdminDashboard = () => {
     { key: 'dashboard', label: 'Dashboard', icon: '🏠', path: '/admin' },
     { key: 'users', label: 'Users', icon: '👥', path: '/admin/users' },
     { key: 'courses', label: 'Courses', icon: '📚', path: '/admin/courses' },
-    { key: 'announcements', label: 'Announcements', icon: '📢', path: '/admin/announcements' },
-    { key: 'settings', label: 'Settings', icon: '⚙️', path: '/admin/settings' }
+    { key: 'announcements', label: 'Announcements', icon: '📢', path: '/admin/announcements' }
   ];
 
   return (
@@ -48,12 +46,6 @@ const AdminDashboard = () => {
             <Route path="courses" element={<CourseManagement />} />
             <Route path="courses/:courseId" element={<CourseDetails />} />
             <Route path="announcements" element={<CombinedAnnouncementManagement />} />
-            <Route path="settings" element={
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
-                <p className="text-gray-400">Settings management will be implemented here.</p>
-              </div>
-            } />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>
         </main>

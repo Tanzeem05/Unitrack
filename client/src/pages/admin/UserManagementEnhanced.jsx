@@ -355,19 +355,19 @@ const UserManagement = () => {
 
   const getRoleColor = (role) => {
     switch (role.toLowerCase()) {
-      case 'admin': return 'bg-red-500 bg-opacity-20 text-red-400';
-      case 'teacher': return 'bg-blue-500 bg-opacity-20 text-blue-400';
-      case 'student': return 'bg-green-500 bg-opacity-20 text-green-400';
-      default: return 'bg-gray-500 bg-opacity-20 text-gray-400';
+      case 'admin': return 'bg-red-600 text-white border border-red-500';
+      case 'teacher': return 'bg-blue-600 text-white border border-blue-500';
+      case 'student': return 'bg-green-600 text-white border border-green-500';
+      default: return 'bg-gray-600 text-white border border-gray-500';
     }
   };
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
-      case 'active': return 'bg-green-500 bg-opacity-20 text-green-400';
-      case 'inactive': return 'bg-yellow-500 bg-opacity-20 text-yellow-400';
-      case 'suspended': return 'bg-red-500 bg-opacity-20 text-red-400';
-      default: return 'bg-gray-500 bg-opacity-20 text-gray-400';
+      case 'active': return 'bg-green-600 text-white border border-green-500';
+      case 'inactive': return 'bg-yellow-600 text-white border border-yellow-500';
+      case 'suspended': return 'bg-red-600 text-white border border-red-500';
+      default: return 'bg-gray-600 text-white border border-gray-500';
     }
   };
 
@@ -476,7 +476,7 @@ const UserManagement = () => {
                       <span className="text-gray-300">{user.email}</span>
                     </td>
                     <td className="py-4 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                      <span className={`px-3 py-2 rounded-lg text-sm font-semibold ${getRoleColor(user.role)}`}>
                         {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                       </span>
                     </td>
@@ -1006,7 +1006,7 @@ const UserManagement = () => {
             <div className="bg-gray-700 rounded-lg p-3">
               <p className="text-white font-medium">{selectedUser.name}</p>
               <p className="text-gray-400 text-sm">{selectedUser.email}</p>
-              <p className="text-gray-400 text-sm">Role: {selectedUser.role}</p>
+              <p className="text-gray-300 text-sm">Role: <span className={`px-2 py-1 rounded text-sm font-semibold ${getRoleColor(selectedUser.role)}`}>{selectedUser.role.charAt(0).toUpperCase() + selectedUser.role.slice(1)}</span></p>
             </div>
           )}
 
