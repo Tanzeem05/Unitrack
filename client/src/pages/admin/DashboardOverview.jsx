@@ -320,8 +320,8 @@ const DashboardOverview = () => {
   }
 
   const statsArray = [
-    { title: 'Total Users', value: stats.totalUsers.value, change: stats.totalUsers.change, color: 'from-blue-500 to-blue-600' },
     { title: 'Active Courses', value: stats.activeCourses.value, change: stats.activeCourses.change, color: 'from-red-500 to-red-600' },
+    { title: 'Total Users', value: stats.totalUsers.value, change: stats.totalUsers.change, color: 'from-blue-500 to-blue-600' },
     { title: 'Total Enrollments', value: stats.totalEnrollments.value, change: stats.totalEnrollments.change, color: 'from-green-500 to-green-600' }
   ];
 
@@ -352,62 +352,64 @@ const DashboardOverview = () => {
       )}
       
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {statsArray.map((stat, index) => (
-            <div 
-              key={index} 
-              className={`bg-gray-800 rounded-lg p-6 border border-gray-700 ${
-                stat.title === 'Total Enrollments' ? 'cursor-pointer hover:bg-gray-750' : ''
-              }`}
-              onClick={stat.title === 'Total Enrollments' ? () => setShowEnrollmentDetails(true) : undefined}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-300">{stat.title}</h3>
-                  <p className="text-3xl font-bold text-white mt-2">{stat.value}</p>
-                  <p className={`text-sm mt-2 ${
-                    stat.change.includes('+') ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {stat.change} from last month
-                  </p>
-                  {stat.title === 'Total Enrollments' && (
-                    <p className="text-xs text-blue-400 mt-1">Click to view details</p>
-                  )}
-                </div>
-                <div className={`w-12 h-12 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center`}>
-                  <span className="text-white text-xl">📊</span>
-                </div>
-              </div>
-            </div>
-        ))}
-      </div>
-
-      {/* Total Enrollments - Full Width Card */}
-      <div 
-        className="bg-gray-800 rounded-lg p-8 border border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
-        onClick={() => setShowEnrollmentDetails(true)}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <h3 className="text-2xl font-semibold text-gray-300">Total Enrollments</h3>
-            <p className="text-5xl font-bold text-white mt-4">{stats.totalEnrollments.value}</p>
-            <div className="flex items-center gap-4 mt-4">
-              <p className={`text-lg ${
-                stats.totalEnrollments.change.includes('+') ? 'text-green-400' : 'text-red-400'
+      <div className="flex gap-6">
+        {/* Active Courses - Large Card (2/3 width) */}
+        <div className="flex-1 bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-300">{statsArray[0].title}</h3>
+              <p className="text-3xl font-bold text-white mt-2">{statsArray[0].value}</p>
+              <p className={`text-sm mt-2 ${
+                statsArray[0].change.includes('+') ? 'text-green-400' : 'text-red-400'
               }`}>
-                {stats.totalEnrollments.change} from last month
+                {statsArray[0].change} from last month
               </p>
-              <p className="text-sm text-blue-400">Click to view detailed breakdown</p>
+            </div>
+            <div className={`w-12 h-12 bg-gradient-to-r ${statsArray[0].color} rounded-full flex items-center justify-center`}>
+              <span className="text-white text-xl">📊</span>
             </div>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-right">
-              <p className="text-gray-400 text-sm mb-2">Quick Stats</p>
-              <p className="text-white text-lg">📈 Growth Trend</p>
-              <p className="text-gray-300 text-sm mt-1">Course enrollments active</p>
+        </div>
+
+        {/* Right Side Cards - Total Users and Total Enrollments */}
+        <div className="flex flex-col gap-6 w-1/3">
+          {/* Total Users Card */}
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-300">{statsArray[1].title}</h3>
+                <p className="text-3xl font-bold text-white mt-2">{statsArray[1].value}</p>
+                <p className={`text-sm mt-2 ${
+                  statsArray[1].change.includes('+') ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  {statsArray[1].change} from last month
+                </p>
+              </div>
+              <div className={`w-12 h-12 bg-gradient-to-r ${statsArray[1].color} rounded-full flex items-center justify-center`}>
+                <span className="text-white text-xl">📊</span>
+              </div>
             </div>
-            <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center">
-              <span className="text-white text-2xl">📊</span>
+          </div>
+
+          {/* Total Enrollments Card */}
+          <div 
+            className="bg-gray-800 rounded-lg p-6 border border-gray-700 cursor-pointer hover:bg-gray-750"
+            onClick={() => setShowEnrollmentDetails(true)}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-300">{statsArray[2].title}</h3>
+                <p className="text-3xl font-bold text-white mt-2">{statsArray[2].value}</p>
+                <p className={`text-sm mt-2 ${
+                  statsArray[2].change.includes('+') ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  {statsArray[2].change} from last month
+                </p>
+                <p className="text-xs text-blue-400 mt-1">Click to view details</p>
+              </div>
+              <div className={`w-12 h-12 bg-gradient-to-r ${statsArray[2].color} rounded-full flex items-center justify-center`}>
+                <span className="text-white text-xl">📊</span>
+              </div>
             </div>
           </div>
         </div>
@@ -486,15 +488,15 @@ const DashboardOverview = () => {
                   <td className="py-3 text-gray-300">{user.email}</td>
                   <td className="py-3 text-gray-300">{user.role}</td>
                   <td className="py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                       user.status === 'Active' 
-                        ? 'bg-green-500 bg-opacity-20 text-green-400' 
-                        : 'bg-yellow-500 bg-opacity-20 text-yellow-400'
+                        ? 'bg-green-600 text-white border border-green-500' 
+                        : 'bg-yellow-600 text-white border border-yellow-500'
                     }`}>
                       {user.status}
                     </span>
                   </td>
-                  <td className="py-3 text-gray-300">{user.joinDate}</td>
+                  <td className="py-3 text-gray-300">{user.join_date}</td>
                 </tr>
               ))}
             </tbody>

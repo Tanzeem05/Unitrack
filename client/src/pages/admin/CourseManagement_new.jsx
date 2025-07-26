@@ -168,10 +168,10 @@ const CourseManagement = () => {
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
-      case 'active': return 'bg-green-500 bg-opacity-20 text-green-400';
-      case 'upcoming': return 'bg-blue-500 bg-opacity-20 text-blue-400';
-      case 'completed': return 'bg-gray-500 bg-opacity-20 text-gray-400';
-      default: return 'bg-gray-500 bg-opacity-20 text-gray-400';
+      case 'active': return 'bg-green-600 text-white border border-green-500';
+      case 'upcoming': return 'bg-blue-600 text-white border border-blue-500';
+      case 'completed': return 'bg-gray-600 text-white border border-gray-500';
+      default: return 'bg-gray-600 text-white border border-gray-500';
     }
   };
 
