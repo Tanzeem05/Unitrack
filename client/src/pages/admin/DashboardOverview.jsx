@@ -7,6 +7,7 @@ const DashboardOverview = () => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [showActivityLogModal, setShowActivityLogModal] = useState(false);
   
   // Form states
   const [userForm, setUserForm] = useState({
@@ -47,8 +48,10 @@ const DashboardOverview = () => {
   const [activities, setActivities] = useState([]);
   const [recentUsers, setRecentUsers] = useState([]);
   const [enrollmentsByCourse, setEnrollmentsByCourse] = useState([]);
+  const [adminLogs, setAdminLogs] = useState([]);
   const [showEnrollmentDetails, setShowEnrollmentDetails] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingLogs, setLoadingLogs] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -282,6 +285,24 @@ const DashboardOverview = () => {
     }
   };
 
+  const handleShowActivityLog = async () => {
+    setShowActivityLogModal(true);
+    setLoadingLogs(true);
+    
+    try {
+      const logsData = await api('/admin/logs');
+      // Sort by date in descending order (most recent first)
+      const sortedLogs = logsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setAdminLogs(sortedLogs);
+    } catch (error) {
+      console.error('Error fetching admin logs:', error);
+      setMessage({ text: 'Error fetching admin logs: ' + error.message, type: 'error' });
+      setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
   const formatRelativeTime = (timestamp) => {
     const now = new Date();
     const time = new Date(timestamp);
@@ -352,105 +373,75 @@ const DashboardOverview = () => {
       )}
       
       {/* Stats Cards */}
-      <div className="flex gap-6">
-        {/* Active Courses - Large Card (2/3 width) */}
-        <div className="flex-1 bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-300">{statsArray[0].title}</h3>
-              <p className="text-3xl font-bold text-white mt-2">{statsArray[0].value}</p>
-              <p className={`text-sm mt-2 ${
-                statsArray[0].change.includes('+') ? 'text-green-400' : 'text-red-400'
-              }`}>
-                {statsArray[0].change} from last month
-              </p>
-            </div>
-            <div className={`w-12 h-12 bg-gradient-to-r ${statsArray[0].color} rounded-full flex items-center justify-center`}>
-              <span className="text-white text-xl">📊</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side Cards - Total Users and Total Enrollments */}
-        <div className="flex flex-col gap-6 w-1/3">
-          {/* Total Users Card */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-300">{statsArray[1].title}</h3>
-                <p className="text-3xl font-bold text-white mt-2">{statsArray[1].value}</p>
-                <p className={`text-sm mt-2 ${
-                  statsArray[1].change.includes('+') ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {statsArray[1].change} from last month
-                </p>
-              </div>
-              <div className={`w-12 h-12 bg-gradient-to-r ${statsArray[1].color} rounded-full flex items-center justify-center`}>
-                <span className="text-white text-xl">📊</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Total Enrollments Card */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {statsArray.map((stat, index) => (
           <div 
-            className="bg-gray-800 rounded-lg p-6 border border-gray-700 cursor-pointer hover:bg-gray-750"
-            onClick={() => setShowEnrollmentDetails(true)}
+            key={index} 
+            className={`bg-gray-800 rounded-lg p-6 border border-gray-700 ${
+              stat.title === 'Total Enrollments' ? 'cursor-pointer hover:bg-gray-750' : ''
+            }`}
+            onClick={stat.title === 'Total Enrollments' ? () => setShowEnrollmentDetails(true) : undefined}
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-300">{statsArray[2].title}</h3>
-                <p className="text-3xl font-bold text-white mt-2">{statsArray[2].value}</p>
+                <h3 className="text-lg font-semibold text-gray-300">{stat.title}</h3>
+                <p className="text-3xl font-bold text-white mt-2">{stat.value}</p>
                 <p className={`text-sm mt-2 ${
-                  statsArray[2].change.includes('+') ? 'text-green-400' : 'text-red-400'
+                  stat.change.includes('+') ? 'text-green-400' : 'text-red-400'
                 }`}>
-                  {statsArray[2].change} from last month
+                  {stat.change} from last month
                 </p>
-                <p className="text-xs text-blue-400 mt-1">Click to view details</p>
+                {stat.title === 'Total Enrollments' && (
+                  <p className="text-xs text-blue-400 mt-1">Click to view details</p>
+                )}
               </div>
-              <div className={`w-12 h-12 bg-gradient-to-r ${statsArray[2].color} rounded-full flex items-center justify-center`}>
+              <div className={`w-12 h-12 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center`}>
                 <span className="text-white text-xl">📊</span>
               </div>
             </div>
           </div>
-        </div>
+        ))}
       </div>
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
-        <div className="lg:col-span-2 bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <div className="lg:col-span-1 bg-gray-800 rounded-lg p-6 border border-gray-700">
           <h3 className="text-xl font-bold text-white mb-6">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 grid-rows-2 gap-4">
             <button 
               onClick={() => setShowUserModal(true)}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 flex items-center gap-3"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200 flex flex-col items-center justify-center gap-2 py-6"
             >
-              <span>👤</span>
-              Add New User
+              <span className="text-3xl">👤</span>
+              <span className="text-base font-medium">Add New User</span>
             </button>
             <button 
               onClick={() => setShowCourseModal(true)}
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 flex items-center gap-3"
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all duration-200 flex flex-col items-center justify-center gap-2 py-6"
             >
-              <span>📚</span>
-              Create Course
+              <span className="text-3xl">📚</span>
+              <span className="text-base font-medium">Create Course</span>
             </button>
             <button 
               onClick={() => setShowAnnouncementModal(true)}
-              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 flex items-center gap-3"
+              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-200 flex flex-col items-center justify-center gap-2 py-6"
             >
-              <span>📢</span>
-              Send Announcement
+              <span className="text-3xl">📢</span>
+              <span className="text-base font-medium">Send Announcement</span>
             </button>
-            <button className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 flex items-center gap-3">
-              <span>📊</span>
-              Activity Log
+            <button 
+              onClick={handleShowActivityLog}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-lg transition-all duration-200 flex flex-col items-center justify-center gap-2 py-6"
+            >
+              <span className="text-3xl">📊</span>
+              <span className="text-base font-medium">Activity Log</span>
             </button>
           </div>
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <div className="lg:col-span-2 bg-gray-800 rounded-lg p-6 border border-gray-700">
           <h3 className="text-xl font-bold text-white mb-6">Recent Activity</h3>
           <div className="space-y-4">
             {activities.map((activity, index) => (
@@ -821,7 +812,7 @@ const DashboardOverview = () => {
       </Modal>
 
       {/* Enrollment Details Modal */}
-      <Modal show={showEnrollmentDetails} onClose={() => setShowEnrollmentDetails(false)} title="Enrollment Details by Course">
+      <Modal show={showEnrollmentDetails} onClose={() => setShowEnrollmentDetails(false)} title="Enrollment Details by Course" customWidth="w-full max-w-4xl">
         <div className="space-y-4 max-h-96 overflow-y-auto">
           {enrollmentsByCourse.length > 0 ? (
             <div className="space-y-3">
@@ -857,6 +848,78 @@ const DashboardOverview = () => {
           <div className="flex justify-end mt-6">
             <button 
               onClick={() => setShowEnrollmentDetails(false)} 
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Activity Log Modal */}
+      <Modal show={showActivityLogModal} onClose={() => setShowActivityLogModal(false)} title="Admin Activity Log" customWidth="w-full max-w-6xl">
+        <div className="space-y-4">
+          {loadingLogs ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <span className="ml-3 text-gray-300">Loading activity logs...</span>
+            </div>
+          ) : adminLogs.length > 0 ? (
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full">
+                <thead className="sticky top-0 bg-gray-800">
+                  <tr className="border-b border-gray-700">
+                    <th className="text-left text-gray-400 font-medium py-3 px-2">Date & Time</th>
+                    <th className="text-left text-gray-400 font-medium py-3 px-2">Admin</th>
+                    <th className="text-left text-gray-400 font-medium py-3 px-2">Action</th>
+                    <th className="text-left text-gray-400 font-medium py-3 px-2">Target</th>
+                    <th className="text-left text-gray-400 font-medium py-3 px-2">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminLogs.map((log, index) => (
+                    <tr key={index} className="border-b border-gray-700 hover:bg-gray-700">
+                      <td className="py-3 px-2 text-white text-sm">
+                        {new Date(log.created_at).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-2 text-gray-300 text-sm">
+                        {log.admin_name || log.admin_id}
+                      </td>
+                      <td className="py-3 px-2 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          log.action === 'CREATE' 
+                            ? 'bg-green-600 text-white border border-green-500'
+                            : log.action === 'UPDATE'
+                            ? 'bg-blue-600 text-white border border-blue-500'
+                            : log.action === 'DELETE'
+                            ? 'bg-red-600 text-white border border-red-500'
+                            : 'bg-gray-600 text-white border border-gray-500'
+                        }`}>
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-gray-300 text-sm">
+                        {log.target_type}
+                        {log.target_id && ` (ID: ${log.target_id})`}
+                      </td>
+                      <td className="py-3 px-2 text-gray-300 text-sm max-w-xs">
+                        <div className="truncate" title={log.details}>
+                          {log.details || 'No details'}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-400">No activity logs found</p>
+            </div>
+          )}
+          <div className="flex justify-end mt-6">
+            <button 
+              onClick={() => setShowActivityLogModal(false)} 
               className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
             >
               Close

@@ -184,6 +184,39 @@ router.get('/recent-users', async (req, res) => {
     }
 });
 
+// Get admin activity logs
+router.get('/logs', async (req, res) => {
+    try {
+        const query = `
+      SELECT 
+        al.log_id,
+        al.admin_id,
+        al.action_type as action,
+        al.description as details,
+        al.affected_user_id as target_id,
+        CASE 
+          WHEN al.affected_user_id IS NOT NULL THEN 'User'
+          WHEN al.affected_course_id IS NOT NULL THEN 'Course'
+          ELSE 'System'
+        END as target_type,
+        al.created_at,
+        u.first_name || ' ' || u.last_name as admin_name,
+        NULL as ip_address
+      FROM admin_logs al
+      LEFT JOIN admins a ON al.admin_id = a.admin_id
+      LEFT JOIN users u ON a.user_id = u.user_id
+      ORDER BY al.created_at DESC
+      LIMIT 100
+    `;
+
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching admin logs:', err);
+        res.status(500).json({ error: 'Failed to fetch admin logs', details: err.message });
+    }
+});
+
 // Get all courses for admin management
 router.get('/courses', async (req, res) => {
     try {
