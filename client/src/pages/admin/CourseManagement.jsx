@@ -137,8 +137,10 @@ const CourseManagement = () => {
     }
   };
 
-  const validateForm = () => {
+  const validateForm = (isEdit = false) => {
     const errors = {};
+    const currentDate = new Date();
+    const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
     
     if (!formData.course_code.trim()) {
       errors.course_code = 'Course code is required';
@@ -152,8 +154,22 @@ const CourseManagement = () => {
     if (!formData.end_date) {
       errors.end_date = 'End date is required';
     }
-    if (formData.start_date && formData.end_date && new Date(formData.start_date) >= new Date(formData.end_date)) {
-      errors.end_date = 'End date must be after start date';
+    
+    // Validate start date is not in the past (only for new courses, not edits)
+    if (formData.start_date && !isEdit) {
+      const startDate = new Date(formData.start_date);
+      if (startDate < today) {
+        errors.start_date = 'Start date cannot be in the past';
+      }
+    }
+    
+    // Validate end date is after start date
+    if (formData.start_date && formData.end_date) {
+      const startDate = new Date(formData.start_date);
+      const endDate = new Date(formData.end_date);
+      if (startDate >= endDate) {
+        errors.end_date = 'End date must be after start date';
+      }
     }
     
     setFormErrors(errors);
@@ -163,7 +179,7 @@ const CourseManagement = () => {
   const handleCreateCourse = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm(false)) return;
     
     try {
       setSubmitting(true);
@@ -186,7 +202,7 @@ const CourseManagement = () => {
   const handleEditCourse = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm(true)) return;
     
     try {
       setSubmitting(true);
@@ -556,6 +572,7 @@ const CourseManagement = () => {
                 type="date"
                 value={formData.start_date}
                 onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                min={new Date().toISOString().split('T')[0]}
                 className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
                   formErrors.start_date ? 'border-red-500' : 'border-gray-600'
                 }`}
@@ -571,6 +588,7 @@ const CourseManagement = () => {
                 type="date"
                 value={formData.end_date}
                 onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                min={formData.start_date || new Date().toISOString().split('T')[0]}
                 className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
                   formErrors.end_date ? 'border-red-500' : 'border-gray-600'
                 }`}
@@ -673,6 +691,7 @@ const CourseManagement = () => {
                 type="date"
                 value={formData.end_date}
                 onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                min={formData.start_date}
                 className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
                   formErrors.end_date ? 'border-red-500' : 'border-gray-600'
                 }`}

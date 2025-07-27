@@ -7,6 +7,7 @@ import Discussions from './Discussions';
 import Resources from './Resources';
 import WeeklyManagement from './WeeklyManagement';
 import WeeklyManagementDemo from './WeeklyManagementDemo';
+import ActivityMonitor from './ActivityMonitor';
 import { api } from '../../utils/api';
 
 const tabList = [
@@ -16,6 +17,7 @@ const tabList = [
   { key: 'announcements', label: 'Announcements' },
   { key: 'discussions', label: 'Discussions' },
   { key: 'resources', label: 'Resources' },
+  { key: 'activity-monitor', label: 'Activity Monitor' },
 ];
 
 export default function CourseDetails() {
@@ -90,6 +92,7 @@ export default function CourseDetails() {
           <Route path="announcements" element={<Announcements courseId={courseId} />} />
           <Route path="discussions" element={<Discussions courseId={courseId} />} />
           <Route path="resources" element={<Resources courseId={courseId} />} />
+          <Route path="activity-monitor" element={<ActivityMonitor courseId={courseId} />} />
           <Route path="*" element={<h2>Tab Not Found</h2>} />
         </Routes>
       </div>

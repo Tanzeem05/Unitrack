@@ -36,6 +36,14 @@ const CourseDetails = () => {
   const [message, setMessage] = useState({ text: '', type: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Remove student modal state
+  const [showRemoveStudentModal, setShowRemoveStudentModal] = useState(false);
+  const [studentToRemove, setStudentToRemove] = useState(null);
+  
+  // Remove teacher modal state
+  const [showRemoveTeacherModal, setShowRemoveTeacherModal] = useState(false);
+  const [teacherToRemove, setTeacherToRemove] = useState(null);
+  
   // Pagination state
   const [currentStudentPage, setCurrentStudentPage] = useState(1);
   const [currentTeacherPage, setCurrentTeacherPage] = useState(1);
@@ -50,6 +58,21 @@ const CourseDetails = () => {
 
   const getTotalPages = (items) => {
     return Math.ceil(items.length / itemsPerPage);
+  };
+
+  // Helper function to check if course is completed
+  const isCourseCompleted = () => {
+    if (!course) return false;
+    
+    // Check if end date has passed
+    if (course.end_date) {
+      const endDate = new Date(course.end_date);
+      const currentDate = new Date();
+      currentDate.setHours(0, 0, 0, 0); // Reset time to compare only dates
+      return endDate < currentDate;
+    }
+    
+    return false;
   };
 
   const handlePageChange = (page, type) => {
@@ -410,6 +433,13 @@ const CourseDetails = () => {
   const handleBulkAssign = async () => {
     if (selectedStudents.length === 0) return;
     
+    // Check if course is completed
+    if (isCourseCompleted()) {
+      setMessage({ text: 'Cannot assign students to a completed course', type: 'error' });
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      return;
+    }
+    
     // Filter out any enrolled students from selection (safety check)
     const availableStudentsToAssign = selectedStudents.filter(studentId => {
       const student = displayedStudents.find(s => s.user_id === studentId);
@@ -457,6 +487,13 @@ const CourseDetails = () => {
     e.preventDefault();
     if (!selectedStudent) return;
     
+    // Check if course is completed
+    if (isCourseCompleted()) {
+      setMessage({ text: 'Cannot assign students to a completed course', type: 'error' });
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      return;
+    }
+    
     // Check if student is already enrolled
     const student = allStudents.find(s => s.user_id === selectedStudent);
     if (student && student.is_enrolled) {
@@ -494,6 +531,13 @@ const CourseDetails = () => {
     e.preventDefault();
     if (!selectedTeacher) return;
     
+    // Check if course is completed
+    if (isCourseCompleted()) {
+      setMessage({ text: 'Cannot assign teachers to a completed course', type: 'error' });
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
       await api(`/course-teachers/${course.course_id}/assign-teacher`, 'POST', {
@@ -505,17 +549,79 @@ const CourseDetails = () => {
       
       setShowAssignTeacherModal(false);
       setSelectedTeacher('');
+      setTeacherSearchTerm('');
       
       // Refresh course details
       await fetchCourseDetails();
       await fetchAvailableTeachers();
     } catch (error) {
       console.error('Error assigning teacher:', error);
-      setMessage({ text: 'Failed to assign teacher', type: 'error' });
+      const errorMessage = error.response?.data?.error || 'Failed to assign teacher';
+      setMessage({ text: errorMessage, type: 'error' });
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleRemoveStudent = async () => {
+    if (!studentToRemove) return;
+    
+    setIsSubmitting(true);
+    try {
+      await api(`/enrollment/${course.course_id}/remove-student/${studentToRemove.user_id}`, 'DELETE');
+      
+      setMessage({ text: 'Student removed successfully!', type: 'success' });
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      
+      setShowRemoveStudentModal(false);
+      setStudentToRemove(null);
+      
+      // Refresh course details
+      await fetchCourseDetails();
+      await fetchAvailableStudents();
+    } catch (error) {
+      console.error('Error removing student:', error);
+      setMessage({ text: 'Failed to remove student', type: 'error' });
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openRemoveStudentModal = (student) => {
+    setStudentToRemove(student);
+    setShowRemoveStudentModal(true);
+  };
+
+  const handleRemoveTeacher = async () => {
+    if (!teacherToRemove) return;
+    
+    setIsSubmitting(true);
+    try {
+      await api(`/course-teachers/${course.course_id}/remove-teacher/${teacherToRemove.user_id}`, 'DELETE');
+      
+      setMessage({ text: 'Teacher removed successfully!', type: 'success' });
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      
+      setShowRemoveTeacherModal(false);
+      setTeacherToRemove(null);
+      
+      // Refresh course details
+      await fetchCourseDetails();
+      await fetchAvailableTeachers();
+    } catch (error) {
+      console.error('Error removing teacher:', error);
+      setMessage({ text: 'Failed to remove teacher', type: 'error' });
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openRemoveTeacherModal = (teacher) => {
+    setTeacherToRemove(teacher);
+    setShowRemoveTeacherModal(true);
   };
 
   if (loading) {
@@ -554,8 +660,20 @@ const CourseDetails = () => {
           >
             ← Back to Courses
           </button>
-          <h1 className="text-3xl font-bold">{course.course_code} - {course.course_name}</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold">{course.course_code} - {course.course_name}</h1>
+            {isCourseCompleted() && (
+              <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-600 text-white">
+                Course Completed
+              </span>
+            )}
+          </div>
           <p className="text-gray-400 mt-2">{course.description}</p>
+          {course.end_date && (
+            <p className="text-gray-400 text-sm mt-1">
+              End Date: {new Date(course.end_date).toLocaleDateString()}
+            </p>
+          )}
         </div>
       </div>
 
@@ -574,26 +692,48 @@ const CourseDetails = () => {
             <h2 className="text-xl font-semibold">Students ({courseStats.studentCount})</h2>
             <button
               onClick={() => setShowAssignStudentModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm"
+              disabled={isCourseCompleted()}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isCourseCompleted() 
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+              title={isCourseCompleted() ? 'Cannot assign students to completed course' : 'Assign Student'}
             >
               + Assign Student
             </button>
           </div>
+          {isCourseCompleted() && (
+            <div className="mb-4 p-3 bg-yellow-900 border border-yellow-600 rounded-lg">
+              <p className="text-yellow-200 text-sm">
+                ⚠️ This course has passed its end date. No new students can be assigned.
+              </p>
+            </div>
+          )}
           <div className="space-y-3">
             {courseStats.students.length > 0 ? (
               <>
                 {paginatedStudents.map((student) => (
-                  <div key={student.user_id} className="flex items-center space-x-3 p-2 bg-gray-700 rounded">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                      {student.first_name?.[0]}{student.last_name?.[0]}
+                  <div key={student.user_id} className="flex items-center justify-between p-2 bg-gray-700 rounded">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                        {student.first_name?.[0]}{student.last_name?.[0]}
+                      </div>
+                      <div>
+                        <p className="text-white text-sm">{student.first_name} {student.last_name}</p>
+                        <p className="text-gray-400 text-xs">{student.email}</p>
+                        {student.batch_year && (
+                          <p className="text-blue-300 text-xs">Batch {student.batch_year}</p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white text-sm">{student.first_name} {student.last_name}</p>
-                      <p className="text-gray-400 text-xs">{student.email}</p>
-                      {student.batch_year && (
-                        <p className="text-blue-300 text-xs">Batch {student.batch_year}</p>
-                      )}
-                    </div>
+                    <button
+                      onClick={() => openRemoveStudentModal(student)}
+                      className="text-red-400 hover:text-red-300 text-sm px-2 py-1 rounded transition-colors"
+                      title="Remove student from course"
+                    >
+                      Remove
+                    </button>
                   </div>
                 ))}
                 <PaginationControls 
@@ -615,26 +755,48 @@ const CourseDetails = () => {
             <h2 className="text-xl font-semibold">Teachers ({courseStats.teacherCount})</h2>
             <button
               onClick={() => setShowAssignTeacherModal(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm"
+              disabled={isCourseCompleted()}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isCourseCompleted() 
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
+              title={isCourseCompleted() ? 'Cannot assign teachers to completed course' : 'Assign Teacher'}
             >
               + Assign Teacher
             </button>
           </div>
+          {isCourseCompleted() && (
+            <div className="mb-4 p-3 bg-yellow-900 border border-yellow-600 rounded-lg">
+              <p className="text-yellow-200 text-sm">
+                ⚠️ This course has passed its end date. No new teachers can be assigned.
+              </p>
+            </div>
+          )}
           <div className="space-y-3">
             {courseStats.teachers.length > 0 ? (
               <>
                 {paginatedTeachers.map((teacher) => (
-                  <div key={teacher.user_id} className="flex items-center space-x-3 p-2 bg-gray-700 rounded">
-                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                      {teacher.first_name?.[0]}{teacher.last_name?.[0]}
+                  <div key={teacher.user_id} className="flex items-center justify-between p-2 bg-gray-700 rounded">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                        {teacher.first_name?.[0]}{teacher.last_name?.[0]}
+                      </div>
+                      <div>
+                        <p className="text-white text-sm">{teacher.first_name} {teacher.last_name}</p>
+                        <p className="text-gray-400 text-xs">{teacher.email}</p>
+                        {teacher.specialization && (
+                          <p className="text-blue-300 text-xs">{teacher.specialization}</p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white text-sm">{teacher.first_name} {teacher.last_name}</p>
-                      <p className="text-gray-400 text-xs">{teacher.email}</p>
-                      {teacher.specialization && (
-                        <p className="text-blue-300 text-xs">{teacher.specialization}</p>
-                      )}
-                    </div>
+                    <button
+                      onClick={() => openRemoveTeacherModal(teacher)}
+                      className="text-red-400 hover:text-red-300 text-sm px-2 py-1 rounded transition-colors"
+                      title="Remove teacher from course"
+                    >
+                      Remove
+                    </button>
                   </div>
                 ))}
                 <PaginationControls 
@@ -663,14 +825,26 @@ const CourseDetails = () => {
         setShowSuggestions(false);
       }} title="Assign Students to Course">
         <div className="space-y-6">
+          {/* Course Completion Warning */}
+          {isCourseCompleted() && (
+            <div className="p-4 bg-red-900 border border-red-600 rounded-lg">
+              <p className="text-red-200 font-medium mb-2">⚠️ Course Completed</p>
+              <p className="text-red-300 text-sm">
+                This course has passed its end date. 
+                Students cannot be assigned to completed courses.
+              </p>
+            </div>
+          )}
+
           {/* Mode Toggle */}
           <div className="flex gap-3">
             <button
               type="button"
               onClick={() => setBulkAssignMode(false)}
+              disabled={isCourseCompleted()}
               className={`px-4 py-2 rounded-lg text-sm font-medium ${!bulkAssignMode 
                 ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                : `${isCourseCompleted() ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`
               }`}
             >
               Single Assignment
@@ -678,9 +852,10 @@ const CourseDetails = () => {
             <button
               type="button"
               onClick={() => setBulkAssignMode(true)}
+              disabled={isCourseCompleted()}
               className={`px-4 py-2 rounded-lg text-sm font-medium ${bulkAssignMode 
                 ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                : `${isCourseCompleted() ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`
               }`}
             >
               Bulk Assignment
@@ -697,7 +872,8 @@ const CourseDetails = () => {
                   <select
                     value={studentFilters.session}
                     onChange={(e) => handleFilterChange('session', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isCourseCompleted()}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="">All Sessions</option>
                     {filterOptions.sessions.map((session) => (
@@ -710,7 +886,8 @@ const CourseDetails = () => {
                   <select
                     value={studentFilters.department_id}
                     onChange={(e) => handleFilterChange('department_id', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isCourseCompleted()}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="">All Departments</option>
                     {filterOptions.departments.map((department) => (
@@ -727,7 +904,8 @@ const CourseDetails = () => {
                   value={searchTerm}
                   onChange={(e) => handleSearchTermChange(e.target.value)}
                   placeholder="Type student name or email..."
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isCourseCompleted()}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                 />
                 
@@ -777,8 +955,8 @@ const CourseDetails = () => {
               <div className="flex gap-3 mt-6">
                 <button 
                   type="submit" 
-                  disabled={isSubmitting || !selectedStudent}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                  disabled={isSubmitting || !selectedStudent || isCourseCompleted()}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <>
@@ -812,7 +990,8 @@ const CourseDetails = () => {
                   <select
                     value={studentFilters.session}
                     onChange={(e) => handleFilterChange('session', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isCourseCompleted()}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="">Select Session</option>
                     {filterOptions.sessions.map((session) => (
@@ -825,7 +1004,8 @@ const CourseDetails = () => {
                   <select
                     value={studentFilters.department_id}
                     onChange={(e) => handleFilterChange('department_id', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isCourseCompleted()}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="">Select Department</option>
                     {filterOptions.departments.map((department) => (
@@ -926,8 +1106,8 @@ const CourseDetails = () => {
                 <button 
                   type="button"
                   onClick={handleBulkAssign}
-                  disabled={isSubmitting || selectedStudents.length === 0}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                  disabled={isSubmitting || selectedStudents.length === 0 || isCourseCompleted()}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <>
@@ -969,94 +1149,228 @@ const CourseDetails = () => {
         }} 
         title="Assign Teacher to Course"
       >
-        <form onSubmit={handleAssignTeacher} className="space-y-4">
-          <div className="relative teacher-search-container">
-            <label className="block text-gray-300 text-sm font-medium mb-2">Search for Teacher</label>
-            <input
-              type="text"
-              value={teacherSearchTerm}
-              onChange={(e) => handleTeacherSearch(e.target.value)}
-              placeholder="Search by name or email..."
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            
-            {/* Search Suggestions */}
-            {showTeacherSuggestions && filteredTeachers.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {filteredTeachers.map((teacher) => (
-                  <div
-                    key={teacher.user_id}
-                    onClick={() => selectTeacherFromSearch(teacher)}
-                    className="px-3 py-2 hover:bg-gray-600 cursor-pointer text-white border-b border-gray-600 last:border-b-0"
-                  >
-                    <div className="font-medium">{teacher.first_name} {teacher.last_name}</div>
-                    <div className="text-sm text-gray-300">{teacher.email}</div>
-                    {teacher.username && (
-                      <div className="text-xs text-gray-400">@{teacher.username}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {showTeacherSuggestions && filteredTeachers.length === 0 && teacherSearchTerm && (
-              <div className="absolute z-10 w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg">
-                <div className="px-3 py-2 text-gray-400">No teachers found</div>
-              </div>
-            )}
-          </div>
+        <div className="space-y-4">
+          {/* Course Completion Warning */}
+          {isCourseCompleted() && (
+            <div className="p-4 bg-red-900 border border-red-600 rounded-lg">
+              <p className="text-red-200 font-medium mb-2">⚠️ Course Completed</p>
+              <p className="text-red-300 text-sm">
+                This course has passed its end date. 
+                Teachers cannot be assigned to completed courses.
+              </p>
+            </div>
+          )}
 
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">Or Select from Dropdown</label>
-            <select
-              value={selectedTeacher}
-              onChange={(e) => {
-                setSelectedTeacher(e.target.value);
-                const teacher = allTeachers.find(t => t.user_id == e.target.value);
-                if (teacher) {
-                  setTeacherSearchTerm(`${teacher.first_name} ${teacher.last_name} (${teacher.email})`);
-                } else {
+          <form onSubmit={handleAssignTeacher} className="space-y-4">
+            <div className="relative teacher-search-container">
+              <label className="block text-gray-300 text-sm font-medium mb-2">Search for Teacher</label>
+              <input
+                type="text"
+                value={teacherSearchTerm}
+                onChange={(e) => handleTeacherSearch(e.target.value)}
+                placeholder="Search by name or email..."
+                disabled={isCourseCompleted()}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              
+              {/* Search Suggestions */}
+              {showTeacherSuggestions && filteredTeachers.length > 0 && !isCourseCompleted() && (
+                <div className="absolute z-10 w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {filteredTeachers.map((teacher) => (
+                    <div
+                      key={teacher.user_id}
+                      onClick={() => selectTeacherFromSearch(teacher)}
+                      className="px-3 py-2 hover:bg-gray-600 cursor-pointer text-white border-b border-gray-600 last:border-b-0"
+                    >
+                      <div className="font-medium">{teacher.first_name} {teacher.last_name}</div>
+                      <div className="text-sm text-gray-300">{teacher.email}</div>
+                      {teacher.username && (
+                        <div className="text-xs text-gray-400">@{teacher.username}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {showTeacherSuggestions && filteredTeachers.length === 0 && teacherSearchTerm && !isCourseCompleted() && (
+                <div className="absolute z-10 w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg">
+                  <div className="px-3 py-2 text-gray-400">No teachers found</div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">Or Select from Dropdown</label>
+              <select
+                value={selectedTeacher}
+                onChange={(e) => {
+                  setSelectedTeacher(e.target.value);
+                  const teacher = allTeachers.find(t => t.user_id == e.target.value);
+                  if (teacher) {
+                    setTeacherSearchTerm(`${teacher.first_name} ${teacher.last_name} (${teacher.email})`);
+                  } else {
+                    setTeacherSearchTerm('');
+                  }
+                  setShowTeacherSuggestions(false);
+                }}
+                disabled={isCourseCompleted()}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Choose a teacher...</option>
+                {allTeachers.map((teacher) => (
+                  <option key={teacher.user_id} value={teacher.user_id}>
+                    {teacher.first_name} {teacher.last_name} ({teacher.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button 
+                type="submit" 
+                disabled={isSubmitting || !selectedTeacher || isCourseCompleted()}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Assigning...
+                  </>
+                ) : (
+                  'Assign Teacher'
+                )}
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  setShowAssignTeacherModal(false);
+                  setSelectedTeacher('');
                   setTeacherSearchTerm('');
-                }
-                setShowTeacherSuggestions(false);
-              }}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Choose a teacher...</option>
-              {allTeachers.map((teacher) => (
-                <option key={teacher.user_id} value={teacher.user_id}>
-                  {teacher.first_name} {teacher.last_name} ({teacher.email})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex gap-3 mt-6">
+                }}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Remove Student Modal */}
+      <Modal 
+        show={showRemoveStudentModal} 
+        onClose={() => {
+          setShowRemoveStudentModal(false);
+          setStudentToRemove(null);
+        }} 
+        title="Remove Student from Course"
+      >
+        <div className="space-y-4">
+          {studentToRemove && (
+            <div className="p-4 bg-gray-800 rounded-lg">
+              <p className="text-white mb-2">Are you sure you want to remove this student from the course?</p>
+              <div className="flex items-center space-x-3 p-3 bg-gray-700 rounded">
+                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
+                  {studentToRemove.first_name?.[0]}{studentToRemove.last_name?.[0]}
+                </div>
+                <div>
+                  <p className="text-white font-medium">{studentToRemove.first_name} {studentToRemove.last_name}</p>
+                  <p className="text-gray-400 text-sm">{studentToRemove.email}</p>
+                  {studentToRemove.batch_year && (
+                    <p className="text-blue-300 text-sm">Batch {studentToRemove.batch_year}</p>
+                  )}
+                </div>
+              </div>
+              <p className="text-yellow-200 text-sm mt-3">
+                ⚠️ This action will remove the student's enrollment and may affect their progress data.
+              </p>
+            </div>
+          )}
+          
+          <div className="flex gap-3">
             <button 
-              type="submit" 
-              disabled={isSubmitting || !selectedTeacher}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+              onClick={handleRemoveStudent}
+              disabled={isSubmitting}
+              className="bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white px-4 py-2 rounded-lg flex items-center gap-2"
             >
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Assigning...
+                  Removing...
                 </>
               ) : (
-                'Assign Teacher'
+                'Remove Student'
               )}
             </button>
             <button 
-              type="button"
               onClick={() => {
-                setShowAssignTeacherModal(false);
-                setSelectedTeacher('');
+                setShowRemoveStudentModal(false);
+                setStudentToRemove(null);
               }}
               className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
             >
               Cancel
             </button>
           </div>
-        </form>
+        </div>
+      </Modal>
+
+      {/* Remove Teacher Modal */}
+      <Modal 
+        show={showRemoveTeacherModal} 
+        onClose={() => {
+          setShowRemoveTeacherModal(false);
+          setTeacherToRemove(null);
+        }} 
+        title="Remove Teacher from Course"
+      >
+        <div className="space-y-4">
+          {teacherToRemove && (
+            <div className="p-4 bg-gray-800 rounded-lg">
+              <p className="text-white mb-2">Are you sure you want to remove this teacher from the course?</p>
+              <div className="flex items-center space-x-3 p-3 bg-gray-700 rounded">
+                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-medium">
+                  {teacherToRemove.first_name?.[0]}{teacherToRemove.last_name?.[0]}
+                </div>
+                <div>
+                  <p className="text-white font-medium">{teacherToRemove.first_name} {teacherToRemove.last_name}</p>
+                  <p className="text-gray-400 text-sm">{teacherToRemove.email}</p>
+                  {teacherToRemove.specialization && (
+                    <p className="text-blue-300 text-sm">{teacherToRemove.specialization}</p>
+                  )}
+                </div>
+              </div>
+              <p className="text-yellow-200 text-sm mt-3">
+                ⚠️ This action will remove the teacher's assignment from this course.
+              </p>
+            </div>
+          )}
+          
+          <div className="flex gap-3">
+            <button 
+              onClick={handleRemoveTeacher}
+              disabled={isSubmitting}
+              className="bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Removing...
+                </>
+              ) : (
+                'Remove Teacher'
+              )}
+            </button>
+            <button 
+              onClick={() => {
+                setShowRemoveTeacherModal(false);
+                setTeacherToRemove(null);
+              }}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

@@ -273,4 +273,246 @@ router.put('/:submissionId', async (req, res) => {
   }
 });
 
+// Get weekly submission trends for a course
+router.get('/course/:courseId/weekly-trends', async (req, res) => {
+  const { courseId } = req.params;
+  
+  try {
+    // Get total enrolled students for this course
+    const enrolledQuery = `
+      SELECT COUNT(*) as total_students
+      FROM Student_Enrollment se
+      WHERE se.course_id = $1
+    `;
+    const enrolledResult = await pool.query(enrolledQuery, [courseId]);
+    const totalStudents = parseInt(enrolledResult.rows[0].total_students) || 1;
+
+    // Get course start date to calculate relative week numbers
+    const courseQuery = `
+      SELECT start_date, end_date
+      FROM courses
+      WHERE course_id = $1
+    `;
+    const courseResult = await pool.query(courseQuery, [courseId]);
+    const courseStartDate = courseResult.rows[0]?.start_date;
+
+    // Get weekly submission data based on actual assignment due dates
+    const weeklyQuery = `
+      SELECT 
+        DATE_TRUNC('week', a.due_date) as week_start,
+        COUNT(DISTINCT a.assignment_id) as total_assignments,
+        COUNT(s.submission_id) as total_submissions,
+        COUNT(DISTINCT s.student_id) as unique_submitters,
+        MIN(a.due_date) as earliest_due,
+        MAX(a.due_date) as latest_due,
+        STRING_AGG(DISTINCT a.title, ', ' ORDER BY a.title) as assignment_titles
+      FROM assignments a
+      LEFT JOIN assignment_submissions s ON a.assignment_id = s.assignment_id
+      WHERE a.course_id = $1 
+      GROUP BY DATE_TRUNC('week', a.due_date)
+      ORDER BY week_start ASC
+    `;
+    
+    const weeklyResult = await pool.query(weeklyQuery, [courseId]);
+    
+    // Calculate course week numbers
+    const weeklyTrends = weeklyResult.rows.map((row, index) => {
+      const expectedSubmissions = parseInt(row.total_assignments) * totalStudents;
+      const actualSubmissions = parseInt(row.total_submissions);
+      const submissionRate = expectedSubmissions > 0 ? 
+        Math.round((actualSubmissions / expectedSubmissions) * 100) : 0;
+      
+      // Calculate week number relative to course start
+      let courseWeekNumber;
+      if (courseStartDate) {
+        const weekStart = new Date(row.week_start);
+        const courseStart = new Date(courseStartDate);
+        const daysDiff = Math.floor((weekStart - courseStart) / (1000 * 60 * 60 * 24));
+        courseWeekNumber = Math.floor(daysDiff / 7) + 1;
+      } else {
+        // Fallback: use sequential numbering if no course start date
+        courseWeekNumber = index + 1;
+      }
+      
+      return {
+        week: `Week ${courseWeekNumber}`,
+        week_number: courseWeekNumber,
+        week_start: row.week_start,
+        submissions: submissionRate,
+        target: 100,
+        actual_submissions: actualSubmissions,
+        expected_submissions: expectedSubmissions,
+        total_assignments: parseInt(row.total_assignments),
+        unique_submitters: parseInt(row.unique_submitters),
+        earliest_due: row.earliest_due,
+        latest_due: row.latest_due,
+        assignment_titles: row.assignment_titles
+      };
+    });
+    
+    // Sort by course week number
+    weeklyTrends.sort((a, b) => a.week_number - b.week_number);
+    
+    res.json({
+      weekly_trends: weeklyTrends,
+      total_students: totalStudents,
+      course_start_date: courseStartDate
+    });
+  } catch (err) {
+    console.error('DB error fetching weekly trends:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get overall course submission statistics
+router.get('/course/:courseId/statistics', async (req, res) => {
+  const { courseId } = req.params;
+  
+  try {
+    // Get total enrolled students
+    const enrolledQuery = `
+      SELECT COUNT(*) as total_students
+      FROM Student_Enrollment se
+      WHERE se.course_id = $1
+    `;
+    const enrolledResult = await pool.query(enrolledQuery, [courseId]);
+    const totalStudents = parseInt(enrolledResult.rows[0].total_students) || 0;
+
+    // Get overall submission statistics
+    const statsQuery = `
+      SELECT 
+        COUNT(DISTINCT a.assignment_id) as total_assignments,
+        COUNT(s.submission_id) as total_submissions,
+        COUNT(CASE WHEN s.graded_at IS NOT NULL THEN 1 END) as total_graded,
+        COUNT(DISTINCT s.student_id) as students_who_submitted
+      FROM assignments a
+      LEFT JOIN assignment_submissions s ON a.assignment_id = s.assignment_id
+      WHERE a.course_id = $1
+    `;
+    
+    const statsResult = await pool.query(statsQuery, [courseId]);
+    const stats = statsResult.rows[0];
+    
+    const totalAssignments = parseInt(stats.total_assignments) || 0;
+    const totalSubmissions = parseInt(stats.total_submissions) || 0;
+    const totalGraded = parseInt(stats.total_graded) || 0;
+    const studentsWhoSubmitted = parseInt(stats.students_who_submitted) || 0;
+    
+    // Calculate rates
+    const totalPossibleSubmissions = totalAssignments * totalStudents;
+    const overallSubmissionRate = totalPossibleSubmissions > 0 ? 
+      ((totalSubmissions / totalPossibleSubmissions) * 100).toFixed(1) : 0;
+    
+    const studentParticipationRate = totalStudents > 0 ? 
+      ((studentsWhoSubmitted / totalStudents) * 100).toFixed(1) : 0;
+    
+    // Get actual grading statistics (scores and averages)
+    const gradingStatsQuery = `
+      SELECT 
+        AVG(CASE WHEN s.points_earned IS NOT NULL AND a.max_points > 0 
+            THEN (s.points_earned::float / a.max_points::float) * 100 
+            ELSE NULL END) as class_average,
+        COUNT(CASE WHEN s.points_earned IS NOT NULL THEN 1 END) as scored_submissions,
+        SUM(CASE WHEN s.points_earned IS NOT NULL AND a.max_points > 0 
+            THEN (CASE WHEN (s.points_earned::float / a.max_points::float) * 100 >= 90 THEN 1 ELSE 0 END)
+            ELSE 0 END) as grade_a_count,
+        SUM(CASE WHEN s.points_earned IS NOT NULL AND a.max_points > 0 
+            THEN (CASE WHEN (s.points_earned::float / a.max_points::float) * 100 >= 80 AND (s.points_earned::float / a.max_points::float) * 100 < 90 THEN 1 ELSE 0 END)
+            ELSE 0 END) as grade_b_count,
+        SUM(CASE WHEN s.points_earned IS NOT NULL AND a.max_points > 0 
+            THEN (CASE WHEN (s.points_earned::float / a.max_points::float) * 100 >= 70 AND (s.points_earned::float / a.max_points::float) * 100 < 80 THEN 1 ELSE 0 END)
+            ELSE 0 END) as grade_c_count,
+        SUM(CASE WHEN s.points_earned IS NOT NULL AND a.max_points > 0 
+            THEN (CASE WHEN (s.points_earned::float / a.max_points::float) * 100 >= 60 AND (s.points_earned::float / a.max_points::float) * 100 < 70 THEN 1 ELSE 0 END)
+            ELSE 0 END) as grade_d_count,
+        SUM(CASE WHEN s.points_earned IS NOT NULL AND a.max_points > 0 
+            THEN (CASE WHEN (s.points_earned::float / a.max_points::float) * 100 < 60 THEN 1 ELSE 0 END)
+            ELSE 0 END) as grade_f_count
+      FROM assignments a
+      LEFT JOIN assignment_submissions s ON a.assignment_id = s.assignment_id
+      WHERE a.course_id = $1 AND s.graded_at IS NOT NULL
+    `;
+    
+    const gradingStatsResult = await pool.query(gradingStatsQuery, [courseId]);
+    const gradingStats = gradingStatsResult.rows[0];
+    
+    const classAverage = gradingStats.class_average ? 
+      Math.round(parseFloat(gradingStats.class_average) * 100) / 100 : null;
+    const scoredSubmissions = parseInt(gradingStats.scored_submissions) || 0;
+    
+    // Grade distribution
+    const gradeDistribution = [
+      { grade: 'A (90-100)', count: parseInt(gradingStats.grade_a_count) || 0 },
+      { grade: 'B (80-89)', count: parseInt(gradingStats.grade_b_count) || 0 },
+      { grade: 'C (70-79)', count: parseInt(gradingStats.grade_c_count) || 0 },
+      { grade: 'D (60-69)', count: parseInt(gradingStats.grade_d_count) || 0 },
+      { grade: 'F (<60)', count: parseInt(gradingStats.grade_f_count) || 0 }
+    ].map(grade => ({
+      ...grade,
+      percentage: scoredSubmissions > 0 ? Math.round((grade.count / scoredSubmissions) * 100) : 0
+    }));
+    
+    res.json({
+      total_students: totalStudents,
+      total_assignments: totalAssignments,
+      total_submissions: totalSubmissions,
+      total_graded: totalGraded,
+      students_who_submitted: studentsWhoSubmitted,
+      total_possible_submissions: totalPossibleSubmissions,
+      overall_submission_rate: parseFloat(overallSubmissionRate),
+      student_participation_rate: parseFloat(studentParticipationRate),
+      pending_grading: totalSubmissions - totalGraded,
+      // New grading statistics
+      class_average: classAverage,
+      scored_submissions: scoredSubmissions,
+      grade_distribution: gradeDistribution
+    });
+  } catch (err) {
+    console.error('DB error fetching course statistics:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get assignment-level grading statistics for charts
+router.get('/course/:courseId/assignment-averages', async (req, res) => {
+  const { courseId } = req.params;
+  
+  try {
+    const query = `
+      SELECT 
+        a.assignment_id,
+        a.title,
+        a.max_points,
+        COUNT(s.submission_id) as submission_count,
+        COUNT(CASE WHEN s.graded_at IS NOT NULL THEN 1 END) as graded_count,
+        AVG(CASE WHEN s.points_earned IS NOT NULL AND a.max_points > 0 
+            THEN (s.points_earned::float / a.max_points::float) * 100 
+            ELSE NULL END) as average_percentage,
+        COALESCE(AVG(s.points_earned), 0) as average_points
+      FROM assignments a
+      LEFT JOIN assignment_submissions s ON a.assignment_id = s.assignment_id
+      WHERE a.course_id = $1
+      GROUP BY a.assignment_id, a.title, a.max_points
+      ORDER BY a.assignment_id
+    `;
+    
+    const result = await pool.query(query, [courseId]);
+    const assignments = result.rows.map(row => ({
+      assignment_id: row.assignment_id,
+      name: (row.title || 'Assignment').substring(0, 15) + (row.title && row.title.length > 15 ? '...' : ''),
+      title: row.title,
+      max_points: parseInt(row.max_points) || 100,
+      submission_count: parseInt(row.submission_count) || 0,
+      graded_count: parseInt(row.graded_count) || 0,
+      average: row.average_percentage ? Math.round(parseFloat(row.average_percentage) * 100) / 100 : null,
+      average_points: row.average_points ? Math.round(parseFloat(row.average_points) * 100) / 100 : 0
+    }));
+    
+    res.json(assignments);
+  } catch (err) {
+    console.error('DB error fetching assignment averages:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

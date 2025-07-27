@@ -38,7 +38,7 @@ const TeacherSidebar = ({ isOpen, onClose, activeTab, onTabChange, unreadCount =
         <div className="p-6 border-b border-purple-700/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-400 rounded-xl flex items-center justify-center shadow-lg">
                 <GraduationCap className="w-7 h-7 text-white" />
               </div>
               <div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
+// import Sidebar from './student/Sidebar';
 import CurrentCourses from './student/CurrentCourses';
 import CompletedCourses from './student/CompletedCourses';
 import CourseDetails from './student/CourseDetails/CourseDetails';
@@ -50,7 +51,7 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-800 text-white flex">
-      <Sidebar links={navLinks} title="Student Panel" />
+      <Sidebar links={navLinks} title="Unitrack" />
       <main className="flex-1">
         <Header title="Student Dashboard" />
         <div className="p-6">
