@@ -6,6 +6,7 @@ import Modal from './components/Modal';
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -113,9 +114,13 @@ const UserManagement = () => {
   // Debug departments state
   console.log('Current departments state:', departments);
 
-  const fetchUsers = async (page = 1) => {
+  const fetchUsers = async (page = 1, isSearchOrFilter = false) => {
     try {
-      setLoading(true);
+      if (isSearchOrFilter) {
+        setSearchLoading(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       
       // Build query parameters
@@ -200,7 +205,11 @@ const UserManagement = () => {
         hasPrev: false
       });
     } finally {
-      setLoading(false);
+      if (isSearchOrFilter) {
+        setSearchLoading(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -275,7 +284,7 @@ const UserManagement = () => {
       resetForm();
       // Reset to first page and refetch to show new user
       setPagination(prev => ({ ...prev, currentPage: 1 }));
-      await fetchUsers(1);
+      await fetchUsers(1, false);
     } catch (err) {
       console.error('Error creating user:', err);
       setFormErrors({ submit: err.message || 'Failed to create user' });
@@ -314,7 +323,7 @@ const UserManagement = () => {
       setShowEditModal(false);
       resetForm();
       // Refetch current page to show updated data
-      await fetchUsers(pagination.currentPage || 1);
+      await fetchUsers(pagination.currentPage || 1, false);
     } catch (err) {
       console.error('Error updating user:', err);
       setFormErrors({ submit: err.message || 'Failed to update user' });
@@ -332,9 +341,9 @@ const UserManagement = () => {
       const currentPage = pagination.currentPage || 1;
       
       if (remainingUsers === 0 && currentPage > 1) {
-        await fetchUsers(currentPage - 1);
+        await fetchUsers(currentPage - 1, false);
       } else {
-        await fetchUsers(currentPage);
+        await fetchUsers(currentPage, false);
       }
       
       setShowDeleteModal(false);
@@ -387,11 +396,7 @@ const UserManagement = () => {
 
   // Trigger search/filter when terms change
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchUsers(1);
-    }, 300); // Debounce search
-
-    return () => clearTimeout(timeoutId);
+    fetchUsers(1, true); // true indicates this is a search/filter operation
   }, [searchTerm, roleFilter, adminLevelFilter]);
 
   const openEditModal = (user) => {
@@ -551,7 +556,13 @@ const UserManagement = () => {
       )}
 
       {/* Users Table */}
-      <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+      <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden relative">
+        {searchLoading && (
+          <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center z-10">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <span className="ml-3 text-gray-300">Searching...</span>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-700">
@@ -651,7 +662,7 @@ const UserManagement = () => {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => fetchUsers(pagination.currentPage - 1)}
+                onClick={() => fetchUsers(pagination.currentPage - 1, false)}
                 disabled={!pagination.hasPrev}
                 className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 text-white px-3 py-2 rounded-lg text-sm"
               >
@@ -677,7 +688,7 @@ const UserManagement = () => {
                           <span className="px-3 py-2 text-gray-400">...</span>
                         )}
                         <button
-                          onClick={() => fetchUsers(page)}
+                          onClick={() => fetchUsers(page, false)}
                           className={`px-3 py-2 rounded text-sm ${
                             page === pagination.currentPage
                               ? 'bg-blue-600 text-white'
@@ -692,7 +703,7 @@ const UserManagement = () => {
               </div>
               
               <button
-                onClick={() => fetchUsers(pagination.currentPage + 1)}
+                onClick={() => fetchUsers(pagination.currentPage + 1, false)}
                 disabled={!pagination.hasNext}
                 className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 text-white px-3 py-2 rounded-lg text-sm"
               >
