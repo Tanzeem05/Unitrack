@@ -835,6 +835,9 @@ router.post('/users', async (req, res) => {
         if (user_type === 'teacher' && !specialization) {
             return res.status(400).json({ error: 'Specialization is required for teacher users' });
         }
+        if (user_type === 'teacher' && !department_id) {
+            return res.status(400).json({ error: 'Department is required for teacher users' });
+        }
         if (user_type === 'student' && !batch_year) {
             return res.status(400).json({ error: 'Batch year is required for student users' });
         }
@@ -878,7 +881,7 @@ router.post('/users', async (req, res) => {
 
             const query = `
                 INSERT INTO users (username, password, email, first_name, last_name, user_type, admin_level, specialization, batch_year, department_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, LOWER($8), $9, $10)
                 RETURNING user_id, username, email, first_name, last_name, user_type, admin_level, specialization, batch_year, department_id, created_at
             `;
 
