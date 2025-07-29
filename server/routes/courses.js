@@ -507,9 +507,9 @@ router.get('/:id/students', async (req, res) => {
   try {
     const query = `
       SELECT u.user_id, u.first_name, u.last_name, u.email, s.batch_year
-      FROM Student_Enrollment se
-      JOIN Students s ON se.student_id = s.student_id
-      JOIN Users u ON s.user_id = u.user_id
+      FROM student_enrollment se
+      JOIN students s ON se.student_id = s.student_id
+      JOIN users u ON s.user_id = u.user_id
       WHERE se.course_id = $1
       ORDER BY u.first_name, u.last_name
     `;
