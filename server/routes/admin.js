@@ -619,8 +619,10 @@ router.get('/users', async (req, res) => {
         const search = req.query.search || '';
         const userType = req.query.userType || '';
         const adminLevel = req.query.adminLevel || '';
+        const session = req.query.session || '';
+        const departmentId = req.query.departmentId || '';
 
-        console.log('Pagination params:', { page, limit, offset, search, userType, adminLevel });
+        console.log('Pagination params:', { page, limit, offset, search, userType, adminLevel, session, departmentId });
 
         // Build WHERE clause for search and filtering
         let whereClause = '';
@@ -655,6 +657,50 @@ router.get('/users', async (req, res) => {
                 whereClause += `WHERE u.admin_level = $${paramIndex}`;
             }
             queryParams.push(adminLevel);
+            paramIndex++;
+        }
+
+        // Add session filter for students
+        if (session && userType === 'student') {
+            if (whereClause) {
+                whereClause += ` AND u.batch_year = $${paramIndex}`;
+            } else {
+                whereClause += `WHERE u.batch_year = $${paramIndex}`;
+            }
+            queryParams.push(session);
+            paramIndex++;
+        }
+
+        // Add department filter for students
+        if (departmentId && userType === 'student') {
+            if (whereClause) {
+                whereClause += ` AND u.department_id = $${paramIndex}`;
+            } else {
+                whereClause += `WHERE u.department_id = $${paramIndex}`;
+            }
+            queryParams.push(departmentId);
+            paramIndex++;
+        }
+
+        // Add specialization filter for teachers
+        if (req.query.specialization && userType === 'teacher') {
+            if (whereClause) {
+                whereClause += ` AND u.specialization = $${paramIndex}`;
+            } else {
+                whereClause += `WHERE u.specialization = $${paramIndex}`;
+            }
+            queryParams.push(req.query.specialization);
+            paramIndex++;
+        }
+
+        // Add department filter for teachers (if they have department assignments)
+        if (req.query.teacherDepartmentId && userType === 'teacher') {
+            if (whereClause) {
+                whereClause += ` AND u.department_id = $${paramIndex}`;
+            } else {
+                whereClause += `WHERE u.department_id = $${paramIndex}`;
+            }
+            queryParams.push(req.query.teacherDepartmentId);
             paramIndex++;
         }
 
@@ -1335,6 +1381,42 @@ router.get('/admin-levels', async (req, res) => {
     } catch (err) {
         console.error('Error fetching admin levels:', err);
         res.status(500).json({ error: 'Failed to fetch admin levels' });
+    }
+});
+
+// Get unique batch years/sessions for filtering students (Admin only)
+router.get('/sessions', async (req, res) => {
+    try {
+        const query = `
+            SELECT DISTINCT batch_year
+            FROM users
+            WHERE user_type = 'student' AND batch_year IS NOT NULL
+            ORDER BY batch_year DESC
+        `;
+
+        const result = await pool.query(query);
+        res.json(result.rows.map(row => row.batch_year));
+    } catch (err) {
+        console.error('Error fetching sessions:', err);
+        res.status(500).json({ error: 'Failed to fetch sessions' });
+    }
+});
+
+// Get unique specializations for filtering teachers (Admin only)
+router.get('/specializations', async (req, res) => {
+    try {
+        const query = `
+            SELECT DISTINCT specialization
+            FROM users
+            WHERE user_type = 'teacher' AND specialization IS NOT NULL
+            ORDER BY specialization ASC
+        `;
+
+        const result = await pool.query(query);
+        res.json(result.rows.map(row => row.specialization));
+    } catch (err) {
+        console.error('Error fetching specializations:', err);
+        res.status(500).json({ error: 'Failed to fetch specializations' });
     }
 });
 

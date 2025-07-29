@@ -18,7 +18,13 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [adminLevelFilter, setAdminLevelFilter] = useState('all');
+  const [sessionFilter, setSessionFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [specializationFilter, setSpecializationFilter] = useState('all');
+  const [teacherDepartmentFilter, setTeacherDepartmentFilter] = useState('all');
   const [adminLevels, setAdminLevels] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [specializations, setSpecializations] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -47,6 +53,8 @@ const UserManagement = () => {
     fetchUsers();
     fetchDepartments();
     fetchAdminLevels();
+    fetchSessions();
+    fetchSpecializations();
   }, []);
 
   const fetchDepartments = async () => {
@@ -69,6 +77,28 @@ const UserManagement = () => {
       setAdminLevels(data);
     } catch (err) {
       console.error('Error fetching admin levels:', err);
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      console.log('Fetching sessions...');
+      const data = await api('/admin/sessions');
+      console.log('Sessions fetched:', data);
+      setSessions(data);
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
+    }
+  };
+
+  const fetchSpecializations = async () => {
+    try {
+      console.log('Fetching specializations...');
+      const data = await api('/admin/specializations');
+      console.log('Specializations fetched:', data);
+      setSpecializations(data);
+    } catch (err) {
+      console.error('Error fetching specializations:', err);
     }
   };
 
@@ -139,6 +169,26 @@ const UserManagement = () => {
       
       if (adminLevelFilter && adminLevelFilter !== 'all' && roleFilter === 'admin') {
         params.append('adminLevel', adminLevelFilter);
+      }
+      
+      // Add session filter for students
+      if (sessionFilter && sessionFilter !== 'all' && roleFilter === 'student') {
+        params.append('session', sessionFilter);
+      }
+      
+      // Add department filter for students
+      if (departmentFilter && departmentFilter !== 'all' && roleFilter === 'student') {
+        params.append('departmentId', departmentFilter);
+      }
+      
+      // Add specialization filter for teachers
+      if (specializationFilter && specializationFilter !== 'all' && roleFilter === 'teacher') {
+        params.append('specialization', specializationFilter);
+      }
+      
+      // Add department filter for teachers
+      if (teacherDepartmentFilter && teacherDepartmentFilter !== 'all' && roleFilter === 'teacher') {
+        params.append('teacherDepartmentId', teacherDepartmentFilter);
       }
       
       const data = await api(`/admin/users?${params.toString()}`);
@@ -242,6 +292,9 @@ const UserManagement = () => {
     }
     if (formData.user_type === 'teacher' && !formData.specialization.trim()) {
       errors.specialization = 'Specialization is required';
+    }
+    if (formData.user_type === 'teacher' && !formData.department_id) {
+      errors.department_id = 'Department is required for teachers';
     }
     if (formData.user_type === 'student' && !formData.batch_year.trim()) {
       errors.batch_year = 'Batch year is required';
@@ -384,6 +437,12 @@ const UserManagement = () => {
     setRoleFilter(e.target.value);
     // Reset admin level filter when role changes
     setAdminLevelFilter('all');
+    // Reset student-specific filters when role changes
+    setSessionFilter('all');
+    setDepartmentFilter('all');
+    // Reset teacher-specific filters when role changes
+    setSpecializationFilter('all');
+    setTeacherDepartmentFilter('all');
     // Reset to first page when filtering
     setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
@@ -394,10 +453,34 @@ const UserManagement = () => {
     setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
+  const handleSessionFilterChange = (e) => {
+    setSessionFilter(e.target.value);
+    // Reset to first page when filtering
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleDepartmentFilterChange = (e) => {
+    setDepartmentFilter(e.target.value);
+    // Reset to first page when filtering
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleSpecializationFilterChange = (e) => {
+    setSpecializationFilter(e.target.value);
+    // Reset to first page when filtering
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleTeacherDepartmentFilterChange = (e) => {
+    setTeacherDepartmentFilter(e.target.value);
+    // Reset to first page when filtering
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
   // Trigger search/filter when terms change
   useEffect(() => {
     fetchUsers(1, true); // true indicates this is a search/filter operation
-  }, [searchTerm, roleFilter, adminLevelFilter]);
+  }, [searchTerm, roleFilter, adminLevelFilter, sessionFilter, departmentFilter, specializationFilter, teacherDepartmentFilter]);
 
   const openEditModal = (user) => {
     setSelectedUser(user);
@@ -545,7 +628,83 @@ const UserManagement = () => {
               </select>
             </div>
           )}
+          {roleFilter === 'student' && (
+            <>
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Filter by Session</label>
+                <select
+                  value={sessionFilter}
+                  onChange={handleSessionFilterChange}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                >
+                  <option value="all">All Sessions</option>
+                  {sessions.map((session) => (
+                    <option key={session} value={session}>
+                      {session}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+          {roleFilter === 'teacher' && (
+            <>
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Filter by Specialization</label>
+                <select
+                  value={specializationFilter}
+                  onChange={handleSpecializationFilterChange}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                >
+                  <option value="all">All Specializations</option>
+                  {specializations.map((specialization) => (
+                    <option key={specialization} value={specialization}>
+                      {specialization}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
         </div>
+        {roleFilter === 'student' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">Filter by Department</label>
+              <select
+                value={departmentFilter}
+                onChange={handleDepartmentFilterChange}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+              >
+                <option value="all">All Departments</option>
+                {departments.map((dept) => (
+                  <option key={dept.department_id} value={dept.department_id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+        {roleFilter === 'teacher' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">Filter by Department</label>
+              <select
+                value={teacherDepartmentFilter}
+                onChange={handleTeacherDepartmentFilterChange}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+              >
+                <option value="all">All Departments</option>
+                {departments.map((dept) => (
+                  <option key={dept.department_id} value={dept.department_id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Error Display */}
@@ -839,20 +998,43 @@ const UserManagement = () => {
           )}
 
           {formData.user_type === 'teacher' && (
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Specialization *</label>
-              <input
-                type="text"
-                value={formData.specialization}
-                onChange={(e) => setFormData({...formData, specialization: e.target.value})}
-                placeholder="e.g., Computer Science, Mathematics"
-                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
-                  formErrors.specialization ? 'border-red-500' : 'border-gray-600'
-                }`}
-              />
-              {formErrors.specialization && (
-                <p className="text-red-400 text-xs mt-1">{formErrors.specialization}</p>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Specialization *</label>
+                <input
+                  type="text"
+                  value={formData.specialization}
+                  onChange={(e) => setFormData({...formData, specialization: e.target.value})}
+                  placeholder="e.g., Computer Science, Mathematics"
+                  className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
+                    formErrors.specialization ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                />
+                {formErrors.specialization && (
+                  <p className="text-red-400 text-xs mt-1">{formErrors.specialization}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Department *</label>
+                <select
+                  value={formData.department_id}
+                  onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                  className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
+                    formErrors.department_id ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map((dept) => (
+                    <option key={dept.department_id} value={dept.department_id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.department_id && (
+                  <p className="text-red-400 text-xs mt-1">{formErrors.department_id}</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -1043,20 +1225,43 @@ const UserManagement = () => {
           )}
 
           {formData.user_type === 'teacher' && (
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Specialization *</label>
-              <input
-                type="text"
-                value={formData.specialization}
-                onChange={(e) => setFormData({...formData, specialization: e.target.value})}
-                placeholder="e.g., Computer Science, Mathematics"
-                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
-                  formErrors.specialization ? 'border-red-500' : 'border-gray-600'
-                }`}
-              />
-              {formErrors.specialization && (
-                <p className="text-red-400 text-xs mt-1">{formErrors.specialization}</p>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Specialization *</label>
+                <input
+                  type="text"
+                  value={formData.specialization}
+                  onChange={(e) => setFormData({...formData, specialization: e.target.value})}
+                  placeholder="e.g., Computer Science, Mathematics"
+                  className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
+                    formErrors.specialization ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                />
+                {formErrors.specialization && (
+                  <p className="text-red-400 text-xs mt-1">{formErrors.specialization}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Department *</label>
+                <select
+                  value={formData.department_id}
+                  onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                  className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white ${
+                    formErrors.department_id ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map((dept) => (
+                    <option key={dept.department_id} value={dept.department_id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.department_id && (
+                  <p className="text-red-400 text-xs mt-1">{formErrors.department_id}</p>
+                )}
+              </div>
             </div>
           )}
 
