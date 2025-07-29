@@ -191,6 +191,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
+import AdminProfileModal from './AdminProfileModal';
 import { 
   User, 
   LogOut, 
@@ -212,7 +213,7 @@ const AdminSidebar = ({ links, title, activeLink, onQuickAction }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [showLogoutMenu, setShowLogoutMenu] = useState(false);
-  const [showAdminInfo, setShowAdminInfo] = useState(false);
+  const [showAdminProfile, setShowAdminProfile] = useState(false);
 
   // Default navigation links if none provided
   const defaultLinks = [
@@ -264,12 +265,12 @@ const AdminSidebar = ({ links, title, activeLink, onQuickAction }) => {
 
   const handleUserProfileClick = () => {
     setShowLogoutMenu(false);
-    setShowAdminInfo(true);
+    setShowAdminProfile(true);
   };
 
   const handleLogoutIconClick = (e) => {
     e.stopPropagation();
-    setShowAdminInfo(false);
+    setShowAdminProfile(false);
     setShowLogoutMenu(!showLogoutMenu);
   };
 
@@ -384,73 +385,6 @@ const AdminSidebar = ({ links, title, activeLink, onQuickAction }) => {
       {/* User Profile Section */}
       <div className="p-4 border-t border-gray-700">
         <div className="relative">
-          {/* Admin Information Modal */}
-          {showAdminInfo && (
-            <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 rounded-lg border border-gray-600 shadow-xl z-50 max-w-sm">
-              <div className="p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-white font-semibold">Admin Information</h3>
-                  <button
-                    onClick={() => setShowAdminInfo(false)}
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                      <User className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">
-                        {user?.first_name && user?.last_name 
-                          ? `${user.first_name} ${user.last_name}` 
-                          : user?.username || 'Admin'}
-                      </p>
-                      <p className="text-gray-400 text-sm">Administrator</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="text-gray-400">Username:</span>
-                      <p className="text-white">{user?.username || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Email:</span>
-                      <p className="text-white">{user?.email || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Admin Level:</span>
-                      <p className="text-white">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          user?.admin_level === 'super' ? 'bg-blue-600 text-white' :
-                          user?.admin_level === 'admin' ? 'bg-green-600 text-white' :
-                          user?.admin_level === 'moderator' ? 'bg-orange-600 text-white' :
-                          'bg-gray-600 text-white'
-                        }`}>
-                          {user?.admin_level ? user.admin_level.charAt(0).toUpperCase() + user.admin_level.slice(1) : 'Admin'}
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">User Type:</span>
-                      <p className="text-white capitalize">{user?.user_type || 'Admin'}</p>
-                    </div>
-                    {user?.created_at && (
-                      <div>
-                        <span className="text-gray-400">Member Since:</span>
-                        <p className="text-white">{new Date(user.created_at).toLocaleDateString()}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
           {/* Logout confirmation dropdown */}
           {showLogoutMenu && (
             <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 rounded-lg border border-gray-600 shadow-xl z-50">
@@ -499,6 +433,12 @@ const AdminSidebar = ({ links, title, activeLink, onQuickAction }) => {
           </div>
         </div>
       </div>
+
+      {/* Admin Profile Modal */}
+      <AdminProfileModal 
+        show={showAdminProfile} 
+        onClose={() => setShowAdminProfile(false)} 
+      />
     </aside>
   );
 };
