@@ -82,6 +82,17 @@ router.post('/', upload.single('assignmentFile'), async (req, res) => {
   }
 
   try {
+    // Check if an assignment with the same title already exists in this course
+    const duplicateCheck = await pool.query(
+      `SELECT assignment_id FROM assignments 
+       WHERE course_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2))`,
+      [course_id, title]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'An assignment with this title already exists in this course' });
+    }
+
     if (file) {
       try {
         const uploadedFile = await fileHelper.uploadToBucket(file);
@@ -256,10 +267,29 @@ router.put('/:id', upload.single('assignmentFile'), async (req, res) => {
   let file_url = req.body.file_url; // This will be null if no file is sent or if explicitly set to null
 
   try {
-    // Fetch current assignment to get existing file_url
-    const currentAssignmentQuery = 'SELECT file_url FROM assignments WHERE assignment_id = $1';
+    // Fetch current assignment to get existing file_url and course_id
+    const currentAssignmentQuery = 'SELECT file_url, course_id, title FROM assignments WHERE assignment_id = $1';
     const currentAssignmentResult = await pool.query(currentAssignmentQuery, [id]);
-    const currentFileUrl = currentAssignmentResult.rows[0]?.file_url;
+    
+    if (currentAssignmentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+    
+    const currentAssignment = currentAssignmentResult.rows[0];
+    const currentFileUrl = currentAssignment.file_url;
+
+    // Check if another assignment with the same title exists in the same course (excluding current assignment)
+    if (title && title.trim().toLowerCase() !== currentAssignment.title.trim().toLowerCase()) {
+      const duplicateCheck = await pool.query(
+        `SELECT assignment_id FROM assignments 
+         WHERE course_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) AND assignment_id != $3`,
+        [currentAssignment.course_id, title, id]
+      );
+
+      if (duplicateCheck.rows.length > 0) {
+        return res.status(409).json({ error: 'An assignment with this title already exists in this course' });
+      }
+    }
 
     if (file) {
       // New file uploaded, delete old one if exists

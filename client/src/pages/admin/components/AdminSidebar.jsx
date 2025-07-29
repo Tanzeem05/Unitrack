@@ -331,7 +331,7 @@ const AdminSidebar = ({ links, title, activeLink, onQuickAction }) => {
             <Shield className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">{title || 'UniPortal'}</h1>
+            <h1 className="text-xl font-bold text-white">{'UniPortal'}</h1>
             <p className="text-gray-400 text-sm">Admin Dashboard</p>
           </div>
         </Link>

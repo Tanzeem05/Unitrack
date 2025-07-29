@@ -43,6 +43,17 @@ router.post('/threads', async (req, res) => {
       return res.status(403).json({ error: 'Only teachers can create discussion threads' });
     }
     
+    // Check if a thread with the same title already exists in this course
+    const duplicateCheck = await db.query(
+      `SELECT thread_id FROM discussion_threads 
+       WHERE course_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2))`,
+      [course_id, title]
+    );
+    
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'A discussion thread with this title already exists in this course' });
+    }
+    
     const result = await db.query(
       `INSERT INTO discussion_threads (course_id, created_by, title, created_at)
        VALUES ($1, $2, $3, NOW()) RETURNING *`,

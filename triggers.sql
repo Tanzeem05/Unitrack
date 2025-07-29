@@ -197,7 +197,7 @@ FOR EACH ROW
 EXECUTE FUNCTION log_admin_course_changes();
 -- After Delete (optional)
 CREATE TRIGGER trigger_log_course_delete
-AFTER DELETE ON courses
+BEFORE DELETE ON courses
 FOR EACH ROW
 EXECUTE FUNCTION log_admin_course_changes();
 
@@ -249,4 +249,41 @@ CREATE TRIGGER trg_announcement_notice
 AFTER INSERT ON announcements
 FOR EACH ROW
 EXECUTE FUNCTION log_announcement();
+
+
+--course delete
+DECLARE
+  acting_admin_id INTEGER;
+  action_desc TEXT;
+BEGIN
+  BEGIN
+    -- Try to get acting admin from session variable
+    acting_admin_id := current_setting('app.current_admin_id')::INTEGER;
+  EXCEPTION WHEN OTHERS THEN
+    -- Fallback: use first available admin
+    SELECT admin_id INTO acting_admin_id FROM admins ORDER BY admin_id LIMIT 1;
+    IF acting_admin_id IS NULL THEN
+      RAISE NOTICE 'No admin found. Logging skipped.';
+      RETURN OLD;
+    END IF;
+  END;
+
+  -- Prepare course deletion log description
+  action_desc := 'Deleted course: ' || OLD.course_code ;
+
+  -- Insert log entry
+  INSERT INTO admin_logs (
+    admin_id, action_type, description, affected_course_id, created_at
+  ) VALUES (
+    acting_admin_id, 'DELETE_COURSE', action_desc, OLD.course_id, CURRENT_TIMESTAMP
+  );
+
+  RETURN OLD; -- Allow the deletion
+END;
+
+
+
+
+
+
 

@@ -33,7 +33,11 @@ export const api = async (url, method = 'GET', body = null, isFormData = false) 
   });
   
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const error = new Error(data.error || `HTTP ${res.status}`);
+    error.response = { status: res.status, data };
+    throw error;
+  }
   return data;
 };
 

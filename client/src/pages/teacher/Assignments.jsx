@@ -16,6 +16,8 @@ export default function Assignments() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [newAssignment, setNewAssignment] = useState({
     title: '',
@@ -26,6 +28,17 @@ export default function Assignments() {
     assignmentFile: null,
   });
 
+  // Helper function to show error popup
+  const showError = (message) => {
+    setErrorMessage(message);
+    setShowErrorPopup(true);
+    // Hide popup after 5 seconds
+    setTimeout(() => {
+      setShowErrorPopup(false);
+      setErrorMessage('');
+    }, 5000);
+  };
+
   useEffect(() => {
     const fetchAssignments = async () => {
       try {
@@ -34,7 +47,7 @@ export default function Assignments() {
         setAssignments(data);
       } catch (err) {
         console.error('Failed to fetch assignments:', err);
-        setError('Failed to load assignments.');
+        showError('Failed to load assignments.');
       } finally {
         setLoading(false);
       }
@@ -100,7 +113,6 @@ export default function Assignments() {
   
   // Set loading state
   setIsCreating(true);
-  setError(null);
   
   // Debug: Check user and course data
   console.log('Current user:', user);
@@ -109,21 +121,21 @@ export default function Assignments() {
   
   // Validate user authentication
   if (!user || (!user.user_id && !user.id)) {
-    setError('User not authenticated properly.');
+    showError('User not authenticated properly.');
     setIsCreating(false);
     return;
   }
 
   // Validate course ID
   if (!courseId || isNaN(courseId)) {
-    setError('Invalid course ID.');
+    showError('Invalid course ID.');
     setIsCreating(false);
     return;
   }
 
   // Validate required fields
   if (!newAssignment.title || !newAssignment.due_date || !newAssignment.max_points || !newAssignment.weight_percentage) {
-    setError('Please fill in all required fields.');
+    showError('Please fill in all required fields.');
     setIsCreating(false);
     return;
   }
@@ -164,7 +176,6 @@ export default function Assignments() {
       assignmentFile: null,
     });
     setShowCreateForm(false);
-    setError(null);
     
     // Show success popup
     setSuccessMessage('Assignment created successfully!');
@@ -178,7 +189,15 @@ export default function Assignments() {
     
   } catch (err) {
     console.error('Failed to create assignment:', err);
-    setError(`Failed to create assignment: ${err.message}`);
+    
+    // Handle specific error cases with popup
+    if (err.response?.status === 409) {
+      showError('An assignment with this title already exists in this course. Please choose a different title.');
+    } else if (err.response?.status === 403) {
+      showError('You do not have permission to create assignments.');
+    } else {
+      showError(`Failed to create assignment: ${err.message}`);
+    }
   } finally {
     setIsCreating(false);
   }
@@ -205,11 +224,10 @@ export default function Assignments() {
     
     // Set loading state
     setIsUpdating(true);
-    setError(null);
     
     // Validate required fields
     if (!newAssignment.title || !newAssignment.due_date || !newAssignment.max_points || !newAssignment.weight_percentage) {
-      setError('Please fill in all required fields.');
+      showError('Please fill in all required fields.');
       setIsUpdating(false);
       return;
     }
@@ -249,7 +267,6 @@ export default function Assignments() {
       });
       setShowEditForm(false);
       setEditingAssignment(null);
-      setError(null);
       
       // Show success popup
       setSuccessMessage('Assignment updated successfully!');
@@ -263,7 +280,15 @@ export default function Assignments() {
       
     } catch (err) {
       console.error('Failed to update assignment:', err);
-      setError(`Failed to update assignment: ${err.message}`);
+      
+      // Handle specific error cases with popup
+      if (err.response?.status === 409) {
+        showError('An assignment with this title already exists in this course. Please choose a different title.');
+      } else if (err.response?.status === 404) {
+        showError('Assignment not found.');
+      } else {
+        showError(`Failed to update assignment: ${err.message}`);
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -303,10 +328,6 @@ export default function Assignments() {
     return <p className="p-4">Loading assignments...</p>;
   }
 
-  if (error) {
-    return <p className="p-4 text-red-400">{error}</p>;
-  }
-
   return (
     <div className="p-4">
       {/* Success Popup */}
@@ -314,6 +335,14 @@ export default function Assignments() {
         <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2">
           <span>✅</span>
           <span>{successMessage}</span>
+        </div>
+      )}
+
+      {/* Error Popup */}
+      {showErrorPopup && (
+        <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2">
+          <span>❌</span>
+          <span>{errorMessage}</span>
         </div>
       )}
       

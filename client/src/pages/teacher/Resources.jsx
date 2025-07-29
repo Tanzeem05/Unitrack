@@ -60,7 +60,15 @@ export default function TeacherResources({ courseId }) {
         setError(null);
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to create thread');
+        
+        // Handle specific error cases
+        if (response.status === 409) {
+          setError('A resource thread with this title already exists in this course. Please choose a different title.');
+        } else if (response.status === 403) {
+          setError('You do not have permission to create resource threads.');
+        } else {
+          setError(errorData.error || 'Failed to create thread');
+        }
       }
     } catch (err) {
       console.error('Failed to create thread:', err);

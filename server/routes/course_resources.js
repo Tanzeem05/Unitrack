@@ -36,6 +36,17 @@ router.post('/:course_id/threads', authenticateToken, async (req, res) => {
 
     const teacherId = teacherCheck.rows[0].teacher_id;
 
+    // Check if a resource thread with the same title already exists in this course
+    const duplicateCheck = await db.query(
+      `SELECT thread_id FROM resource_threads 
+       WHERE course_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) AND is_deleted = false`,
+      [course_id, title]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'A resource thread with this title already exists in this course' });
+    }
+
     // Create resource thread (only title required)
     const result = await db.query(
       `INSERT INTO resource_threads (course_id, title, created_by)

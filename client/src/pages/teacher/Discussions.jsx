@@ -57,7 +57,15 @@ export default function Discussions({ courseId }) {
       await fetchThreads();
     } catch (err) {
       console.error('Failed to create thread:', err);
-      alert('Failed to create thread. Please try again.');
+      
+      // Handle specific error cases
+      if (err.response?.status === 409) {
+        alert('A discussion thread with this title already exists in this course. Please choose a different title.');
+      } else if (err.response?.status === 403) {
+        alert('You do not have permission to create discussion threads.');
+      } else {
+        alert('Failed to create thread. Please try again.');
+      }
     } finally {
       setCreating(false);
     }
