@@ -1363,14 +1363,13 @@ router.get('/users/:id/enrollments', async (req, res) => {
             SELECT 
                 se.enrollment_id,
                 se.enrollment_date,
-                se.status as enrollment_status,
                 c.course_id,
                 c.course_code,
                 c.course_name,
                 c.description as course_description,
                 c.start_date,
                 c.end_date,
-                d.name as department_name,
+                (select d.name from department d where d.department_id = st.department_id) as department_name,
                 CASE 
                     WHEN c.end_date < CURRENT_DATE THEN 'Completed'
                     WHEN c.start_date > CURRENT_DATE THEN 'Upcoming'
@@ -1388,7 +1387,7 @@ router.get('/users/:id/enrollments', async (req, res) => {
                 ) as submitted_assignments
             FROM student_enrollment se
             JOIN courses c ON se.course_id = c.course_id
-            LEFT JOIN department d ON c.department_id = d.department_id
+            LEFT JOIN students st ON se.student_id = st.student_id
             WHERE se.student_id = $1
             ORDER BY se.enrollment_date DESC, c.start_date DESC
         `;
