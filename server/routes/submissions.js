@@ -515,4 +515,78 @@ router.get('/course/:courseId/assignment-averages', async (req, res) => {
   }
 });
 
+// Get students falling behind (missed last 2 submissions for the course)
+router.get('/course/:courseId/falling-behind', async (req, res) => {
+  const { courseId } = req.params;
+  
+  try {
+    // Get the last 2 assignments for this course (by due date)
+    const lastTwoAssignmentsQuery = `
+      SELECT assignment_id, title, due_date
+      FROM assignments 
+      WHERE course_id = $1 AND due_date < NOW()
+      ORDER BY due_date DESC 
+      LIMIT 2
+    `;
+    
+    const lastTwoAssignmentsResult = await pool.query(lastTwoAssignmentsQuery, [courseId]);
+    const lastTwoAssignments = lastTwoAssignmentsResult.rows;
+    
+    if (lastTwoAssignments.length < 2) {
+      // If there are less than 2 assignments, no one can be falling behind
+      return res.json({
+        falling_behind_students: [],
+        last_two_assignments: lastTwoAssignments,
+        total_falling_behind: 0
+      });
+    }
+    
+    // Get all enrolled students for this course
+    const enrolledStudentsQuery = `
+      SELECT se.student_id, u.first_name, u.last_name, u.email
+      FROM student_enrollment se
+      JOIN students s ON se.student_id = s.student_id
+      JOIN users u ON s.user_id = u.user_id
+      WHERE se.course_id = $1
+    `;
+    
+    const enrolledStudentsResult = await pool.query(enrolledStudentsQuery, [courseId]);
+    const enrolledStudents = enrolledStudentsResult.rows;
+    
+    const assignmentIds = lastTwoAssignments.map(a => a.assignment_id);
+    
+    // Find students who are falling behind (missed both of the last 2 assignments)
+    const fallingBehindQuery = `
+      SELECT 
+        se.student_id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        COUNT(s.submission_id) as submitted_count
+      FROM student_enrollment se
+      JOIN students st ON se.student_id = st.student_id
+      JOIN users u ON st.user_id = u.user_id
+      LEFT JOIN assignment_submissions s ON se.student_id = s.student_id 
+        AND s.assignment_id = ANY($2)
+      WHERE se.course_id = $1
+      GROUP BY se.student_id, u.first_name, u.last_name, u.email
+      HAVING COUNT(s.submission_id) = 0
+    `;
+    
+    const fallingBehindResult = await pool.query(fallingBehindQuery, [courseId, assignmentIds]);
+    const fallingBehindStudents = fallingBehindResult.rows;
+    
+    res.json({
+      falling_behind_students: fallingBehindStudents,
+      last_two_assignments: lastTwoAssignments,
+      total_falling_behind: fallingBehindStudents.length,
+      total_enrolled: enrolledStudents.length
+    });
+    
+  } catch (err) {
+    console.error('DB error fetching falling behind students:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

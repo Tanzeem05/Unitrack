@@ -12,6 +12,10 @@ export default function Assignments() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const [newAssignment, setNewAssignment] = useState({
     title: '',
@@ -94,6 +98,10 @@ export default function Assignments() {
   const handleSubmit = async e => {
   e.preventDefault();
   
+  // Set loading state
+  setIsCreating(true);
+  setError(null);
+  
   // Debug: Check user and course data
   console.log('Current user:', user);
   console.log('Course ID from URL:', courseId);
@@ -102,18 +110,21 @@ export default function Assignments() {
   // Validate user authentication
   if (!user || (!user.user_id && !user.id)) {
     setError('User not authenticated properly.');
+    setIsCreating(false);
     return;
   }
 
   // Validate course ID
   if (!courseId || isNaN(courseId)) {
     setError('Invalid course ID.');
+    setIsCreating(false);
     return;
   }
 
   // Validate required fields
   if (!newAssignment.title || !newAssignment.due_date || !newAssignment.max_points || !newAssignment.weight_percentage) {
     setError('Please fill in all required fields.');
+    setIsCreating(false);
     return;
   }
 
@@ -154,9 +165,22 @@ export default function Assignments() {
     });
     setShowCreateForm(false);
     setError(null);
+    
+    // Show success popup
+    setSuccessMessage('Assignment created successfully!');
+    setShowSuccessPopup(true);
+    
+    // Hide popup after 3 seconds
+    setTimeout(() => {
+      setShowSuccessPopup(false);
+      setSuccessMessage('');
+    }, 3000);
+    
   } catch (err) {
     console.error('Failed to create assignment:', err);
     setError(`Failed to create assignment: ${err.message}`);
+  } finally {
+    setIsCreating(false);
   }
 };
 
@@ -179,9 +203,14 @@ export default function Assignments() {
     
     if (!editingAssignment) return;
     
+    // Set loading state
+    setIsUpdating(true);
+    setError(null);
+    
     // Validate required fields
     if (!newAssignment.title || !newAssignment.due_date || !newAssignment.max_points || !newAssignment.weight_percentage) {
       setError('Please fill in all required fields.');
+      setIsUpdating(false);
       return;
     }
 
@@ -221,9 +250,22 @@ export default function Assignments() {
       setShowEditForm(false);
       setEditingAssignment(null);
       setError(null);
+      
+      // Show success popup
+      setSuccessMessage('Assignment updated successfully!');
+      setShowSuccessPopup(true);
+      
+      // Hide popup after 3 seconds
+      setTimeout(() => {
+        setShowSuccessPopup(false);
+        setSuccessMessage('');
+      }, 3000);
+      
     } catch (err) {
       console.error('Failed to update assignment:', err);
       setError(`Failed to update assignment: ${err.message}`);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -267,6 +309,14 @@ export default function Assignments() {
 
   return (
     <div className="p-4">
+      {/* Success Popup */}
+      {showSuccessPopup && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2">
+          <span>✅</span>
+          <span>{successMessage}</span>
+        </div>
+      )}
+      
       <h2 className="text-xl font-semibold mb-4">Assignments</h2>
 
       <button
@@ -355,9 +405,17 @@ export default function Assignments() {
           </div>
           <button
             type="submit"
-            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+            disabled={isCreating}
+            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Create Assignment
+            {isCreating ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Creating assignment...
+              </>
+            ) : (
+              'Create Assignment'
+            )}
           </button>
         </form>
       )}
@@ -442,14 +500,23 @@ export default function Assignments() {
           <div className="flex gap-2">
             <button
               type="submit"
-              className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded"
+              disabled={isUpdating}
+              className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              Update Assignment
+              {isUpdating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Updating assignment...
+                </>
+              ) : (
+                'Update Assignment'
+              )}
             </button>
             <button
               type="button"
               onClick={cancelEdit}
-              className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+              disabled={isUpdating}
+              className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>

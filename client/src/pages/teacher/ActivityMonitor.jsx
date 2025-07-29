@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../utils/api';
 import { 
   BarChart3, 
@@ -11,7 +11,8 @@ import {
   AlertCircle,
   Users,
   Award,
-  PieChart
+  PieChart,
+  RefreshCw
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -38,66 +39,117 @@ const ActivityMonitor = ({ courseId }) => {
   const [enrolledStudents, setEnrolledStudents] = useState([]);
   const [weeklyTrends, setWeeklyTrends] = useState([]);
   const [courseStats, setCourseStats] = useState(null);
+  const [fallingBehindData, setFallingBehindData] = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
+
+  const fetchActivityData = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+    
+    try {
+      console.log('Fetching activity data for course:', courseId);
+      
+      // Fetch assignments with submission counts
+      console.log('Fetching assignments...');
+      const assignmentsData = await api(`/submissions/course/${courseId}/assignments`);
+      console.log('Assignments data:', assignmentsData);
+      
+      // Fetch course statistics
+      console.log('Fetching course statistics...');
+      const statsData = await api(`/submissions/course/${courseId}/statistics`);
+      console.log('Course statistics:', statsData);
+      
+      // Fetch enrolled students
+      console.log('Fetching course data...');
+      const courseData = await api(`/courses/course/${courseId}`);
+      console.log('Course data:', courseData);
+      
+      console.log('Fetching enrolled students...');
+      const studentsData = await api(`/enrollment/${courseData.course_code}/enrolled-students`);
+      console.log('Students data:', studentsData);
+      
+      // Fetch weekly trends
+      console.log('Fetching weekly trends...');
+      const trendsData = await api(`/submissions/course/${courseId}/weekly-trends`);
+      console.log('Weekly trends data:', trendsData);
+      
+      // Fetch assignment averages for grading overview
+      console.log('Fetching assignment averages...');
+      const assignmentAveragesData = await api(`/submissions/course/${courseId}/assignment-averages`);
+      console.log('Assignment averages data:', assignmentAveragesData);
+      
+      // Fetch falling behind students data
+      console.log('Fetching falling behind students...');
+      let fallingBehindResult = null;
+      try {
+        fallingBehindResult = await api(`/submissions/course/${courseId}/falling-behind`);
+        console.log('Falling behind data:', fallingBehindResult);
+        setFallingBehindData(fallingBehindResult);
+      } catch (fallingBehindError) {
+        console.warn('Failed to fetch falling behind data:', fallingBehindError);
+        // Set default data if the endpoint fails
+        fallingBehindResult = {
+          falling_behind_students: [],
+          last_two_assignments: [],
+          total_falling_behind: 0,
+          total_enrolled: 0
+        };
+        setFallingBehindData(fallingBehindResult);
+      }
+      
+      // Set all data
+      setEnrolledStudents(studentsData || []);
+      setWeeklyTrends(trendsData?.weekly_trends || []);
+      setCourseStats(statsData);
+      
+      // Process statistics with all data available
+      processAssignmentStatsWithRealData(assignmentsData || [], statsData);
+      calculateStudentParticipationWithRealData(assignmentsData || [], studentsData || [], statsData, fallingBehindResult);
+      calculateGradingOverviewWithRealData(assignmentAveragesData || [], statsData);
+      
+      setLastRefresh(new Date());
+      
+      // Show success notification for manual refresh
+      if (isManualRefresh) {
+        setShowRefreshSuccess(true);
+        setTimeout(() => setShowRefreshSuccess(false), 3000);
+      }
+      
+    } catch (err) {
+      console.error('Error fetching activity data:', err);
+      setError(`Failed to load activity data: ${err.message}`);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [courseId]);
 
   useEffect(() => {
-    const fetchActivityData = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        console.log('Fetching activity data for course:', courseId);
-        
-        // Fetch assignments with submission counts
-        console.log('Fetching assignments...');
-        const assignmentsData = await api(`/submissions/course/${courseId}/assignments`);
-        console.log('Assignments data:', assignmentsData);
-        
-        // Fetch course statistics
-        console.log('Fetching course statistics...');
-        const statsData = await api(`/submissions/course/${courseId}/statistics`);
-        console.log('Course statistics:', statsData);
-        
-        // Fetch enrolled students
-        console.log('Fetching course data...');
-        const courseData = await api(`/courses/course/${courseId}`);
-        console.log('Course data:', courseData);
-        
-        console.log('Fetching enrolled students...');
-        const studentsData = await api(`/enrollment/${courseData.course_code}/enrolled-students`);
-        console.log('Students data:', studentsData);
-        
-        // Fetch weekly trends
-        console.log('Fetching weekly trends...');
-        const trendsData = await api(`/submissions/course/${courseId}/weekly-trends`);
-        console.log('Weekly trends data:', trendsData);
-        
-        // Fetch assignment averages for grading overview
-        console.log('Fetching assignment averages...');
-        const assignmentAveragesData = await api(`/submissions/course/${courseId}/assignment-averages`);
-        console.log('Assignment averages data:', assignmentAveragesData);
-        
-        // Set all data
-        setEnrolledStudents(studentsData || []);
-        setWeeklyTrends(trendsData?.weekly_trends || []);
-        setCourseStats(statsData);
-        
-        // Process statistics with all data available
-        processAssignmentStatsWithRealData(assignmentsData || [], statsData);
-        calculateStudentParticipationWithRealData(assignmentsData || [], studentsData || [], statsData);
-        calculateGradingOverviewWithRealData(assignmentAveragesData || [], statsData);
-        
-      } catch (err) {
-        console.error('Error fetching activity data:', err);
-        setError(`Failed to load activity data: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (courseId) {
       fetchActivityData();
     }
-  }, [courseId]);
+  }, [courseId, fetchActivityData]);
+
+  // Auto-refresh every 5 minutes to capture new grading activity
+  useEffect(() => {
+    if (!courseId) return;
+    
+    const interval = setInterval(() => {
+      fetchActivityData(true);
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [courseId, fetchActivityData]);
+
+  const handleManualRefresh = () => {
+    fetchActivityData(true);
+  };
 
   const processAssignmentStatsWithRealData = (assignments, stats) => {
     const currentDate = new Date();
@@ -109,8 +161,21 @@ const ActivityMonitor = ({ courseId }) => {
       return daysUntilDue > 0 && daysUntilDue <= 7; // Next 7 days
     }).length;
     
+    // Count assignments where ALL submissions have been graded
     const assignmentsEvaluated = assignments.filter(assignment => {
-      return (assignment.graded_count || 0) > 0;
+      const submissionCount = assignment.submission_count || 0;
+      const gradedCount = assignment.graded_count || 0;
+      
+      // Consider an assignment "evaluated" only if:
+      // 1. All submissions are graded (gradedCount === submissionCount), OR
+      // 2. No submissions exist but assignment has passed deadline (considered evaluated/closed)
+      if (submissionCount === 0) {
+        const dueDate = new Date(assignment.due_date);
+        return dueDate < currentDate; // Past deadline with no submissions
+      }
+      
+      // Only count as evaluated if ALL submissions are graded
+      return gradedCount === submissionCount;
     }).length;
     
     setAssignmentStats({
@@ -124,7 +189,7 @@ const ActivityMonitor = ({ courseId }) => {
     });
   };
 
-  const calculateStudentParticipationWithRealData = (assignments, students, stats) => {
+  const calculateStudentParticipationWithRealData = (assignments, students, stats, fallingBehindData) => {
     const totalStudents = stats?.total_students || 0;
     
     if (totalStudents === 0) {
@@ -148,8 +213,8 @@ const ActivityMonitor = ({ courseId }) => {
     const perfectSubmissionRate = submissionRate / 100;
     const allSubmittedCount = Math.floor(totalStudents * Math.min(perfectSubmissionRate * 1.2, 1));
     
-    // Students falling behind: those who have submitted less than 50% of expected submissions
-    const fallingBehindCount = Math.max(0, totalStudents - Math.floor(totalStudents * (submissionRate / 100) * 2));
+    // Students falling behind: use real data from API (students who missed last 2 submissions)
+    const fallingBehindCount = fallingBehindData?.total_falling_behind || 0;
     
     setStudentParticipation({
       totalStudents,
@@ -230,14 +295,44 @@ const ActivityMonitor = ({ courseId }) => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <BarChart3 className="w-8 h-8 text-blue-400" />
-        <h2 className="text-2xl font-bold text-white">Activity Monitor</h2>
+    <div className="space-y-6 relative">
+      {/* Success Notification */}
+      {showRefreshSuccess && (
+        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 transition-all duration-300 ease-out">
+          <CheckCircle className="w-4 h-4" />
+          <span className="text-sm font-medium">Activity data refreshed successfully!</span>
+        </div>
+      )}
+      
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <BarChart3 className="w-8 h-8 text-blue-400" />
+          <h2 className="text-2xl font-bold text-white">Activity Monitor</h2>
+        </div>
+        <div className="flex items-center gap-4">
+          {lastRefresh && (
+            <div className="text-sm text-gray-400">
+              Last updated: {lastRefresh.toLocaleTimeString()}
+            </div>
+          )}
+          <button
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+              refreshing 
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg'
+            }`}
+            title="Refresh activity data to see latest grading updates"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {/* Assignment Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 transition-opacity duration-300 ${refreshing ? 'opacity-75' : 'opacity-100'}`}>
         <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg p-6 text-white transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
           <div className="flex items-center justify-between">
             <div>
@@ -259,7 +354,10 @@ const ActivityMonitor = ({ courseId }) => {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg p-6 text-white transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+        <div 
+          className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg p-6 text-white transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl cursor-help"
+          title="Assignments where ALL submissions have been graded (completely evaluated)"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-100 text-sm font-medium">Evaluated</p>
@@ -317,10 +415,28 @@ const ActivityMonitor = ({ courseId }) => {
             </p>
           </div>
           
-          <div className="bg-gradient-to-br from-red-700 to-red-600 rounded-lg p-4 transform hover:scale-105 transition-all duration-300">
+          <div 
+            className="bg-gradient-to-br from-red-700 to-red-600 rounded-lg p-4 transform hover:scale-105 transition-all duration-300 cursor-pointer"
+            title={fallingBehindData?.falling_behind_students?.length > 0 
+              ? `Students falling behind: ${fallingBehindData.falling_behind_students.map(s => `${s.first_name} ${s.last_name}`).join(', ')}`
+              : fallingBehindData?.last_two_assignments?.length < 2 
+                ? 'Need at least 2 assignments to track falling behind students'
+                : 'No students are currently falling behind'
+            }
+          >
             <p className="text-red-100 text-sm">Falling Behind</p>
             <p className="text-2xl font-bold text-white">{studentParticipation?.fallingBehindCount || 0}</p>
-            <p className="text-xs text-red-200">Missed {'>'}1 deadline</p>
+            <p className="text-xs text-red-200">
+              {fallingBehindData?.last_two_assignments?.length < 2 
+                ? 'Need 2+ assignments' 
+                : 'Missed last 2 submissions'
+              }
+            </p>
+            {fallingBehindData?.last_two_assignments?.length === 2 && (
+              <p className="text-xs text-red-300 mt-1 opacity-75">
+                Based on: {fallingBehindData.last_two_assignments.map(a => a.title).join(', ')}
+              </p>
+            )}
           </div>
         </div>
 
@@ -340,6 +456,40 @@ const ActivityMonitor = ({ courseId }) => {
             {assignmentStats?.totalSubmissions || 0} / {assignmentStats?.totalPossibleSubmissions || 0} submissions
           </p>
         </div>
+
+        {/* Falling Behind Students Details */}
+        {fallingBehindData && fallingBehindData.falling_behind_students && fallingBehindData.falling_behind_students.length > 0 && (
+          <div className="mt-6 bg-red-900/20 border border-red-700/50 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="w-5 h-5 text-red-400" />
+              <h4 className="text-red-300 font-semibold">Students Falling Behind</h4>
+              <span className="text-xs text-red-400 bg-red-900/30 px-2 py-1 rounded">
+                {fallingBehindData.falling_behind_students.length} student{fallingBehindData.falling_behind_students.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <p className="text-red-200 text-sm mb-3">
+              The following students have not submitted their last 2 assignments:
+            </p>
+            {fallingBehindData.last_two_assignments && fallingBehindData.last_two_assignments.length >= 2 && (
+              <p className="text-red-300 text-xs mb-3 opacity-75">
+                Missing assignments: <strong>{fallingBehindData.last_two_assignments[0].title}</strong> and <strong>{fallingBehindData.last_two_assignments[1].title}</strong>
+              </p>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              {fallingBehindData.falling_behind_students.slice(0, 6).map((student, index) => (
+                <div key={index} className="bg-red-800/30 rounded px-3 py-2 text-sm">
+                  <p className="text-red-100 font-medium">{student.first_name} {student.last_name}</p>
+                  <p className="text-red-300 text-xs opacity-75">{student.email}</p>
+                </div>
+              ))}
+              {fallingBehindData.falling_behind_students.length > 6 && (
+                <div className="bg-red-800/20 rounded px-3 py-2 text-sm flex items-center justify-center">
+                  <p className="text-red-200">+{fallingBehindData.falling_behind_students.length - 6} more...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Charts Section */}

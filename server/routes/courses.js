@@ -397,19 +397,100 @@ router.get('/teacher/:userName', async (req, res) => {
       return res.status(404).json({ error: 'Teacher not found' });
     }
     
+    // Enhanced query to get courses with progress calculation
     const query = `
-      SELECT c.* FROM courses c
+      SELECT 
+        c.*,
+        -- Student count
+        COALESCE(student_count.count, 0) as student_count,
+        -- Weeks calculation
+        COALESCE(weeks_info.total_weeks, 0) as total_weeks,
+        COALESCE(weeks_info.weeks_passed, 0) as weeks_passed,
+        -- Progress calculation based on weeks
+        CASE 
+          WHEN COALESCE(weeks_info.total_weeks, 0) > 0 THEN
+            ROUND((COALESCE(weeks_info.weeks_passed, 0)::numeric / weeks_info.total_weeks::numeric) * 100, 1)
+          WHEN CURRENT_DATE BETWEEN c.start_date AND c.end_date THEN
+            -- Fallback: calculate based on date if no weeks defined
+            ROUND(((CURRENT_DATE - c.start_date)::numeric / (c.end_date - c.start_date)::numeric) * 100, 1)
+          WHEN CURRENT_DATE < c.start_date THEN 0
+          ELSE 100
+        END as progress,
+        -- Next due assignments
+        upcoming_assignments.next_due_date,
+        COALESCE(upcoming_assignments.upcoming_count, 0) as upcoming_count
+      FROM courses c
       JOIN course_teachers ct ON c.course_id = ct.course_id
       JOIN teachers t ON ct.teacher_id = t.teacher_id
       JOIN users u ON t.user_id = u.user_id
+      -- Student count subquery
+      LEFT JOIN (
+        SELECT 
+          se.course_id,
+          COUNT(se.student_id) as count
+        FROM student_enrollment se
+        GROUP BY se.course_id
+      ) student_count ON c.course_id = student_count.course_id
+      -- Weeks information subquery
+      LEFT JOIN (
+        SELECT 
+          cw.course_id,
+          COUNT(*) as total_weeks,
+          COUNT(CASE WHEN CURRENT_DATE >= cw.start_date THEN 1 END) as weeks_passed
+        FROM course_weeks cw
+        GROUP BY cw.course_id
+      ) weeks_info ON c.course_id = weeks_info.course_id
+      -- Upcoming assignments subquery
+      LEFT JOIN (
+        SELECT 
+          a.course_id,
+          MIN(a.due_date) as next_due_date,
+          COUNT(*) as upcoming_count
+        FROM assignments a
+        WHERE a.due_date >= CURRENT_DATE
+        GROUP BY a.course_id
+      ) upcoming_assignments ON c.course_id = upcoming_assignments.course_id
       WHERE u.username = $1
+      ORDER BY c.course_code
     `;
     
     const result = await pool.query(query, [userName]);
-    console.log(`Query result for ${userName}:`, result.rows);
+    console.log(`Enhanced query result for ${userName}:`, result.rows);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'No courses found for this teacher' });
+    }
+    
+    // For courses without course_weeks, generate them automatically
+    for (const course of result.rows) {
+      if (course.total_weeks === 0 && course.start_date && course.end_date) {
+        console.log(`Generating weeks for course ${course.course_id}`);
+        try {
+          await pool.query(
+            'SELECT generate_course_weeks($1, $2, $3, $4)',
+            [course.course_id, course.start_date, course.end_date, teacherCheck.rows[0].user_id]
+          );
+          
+          // Recalculate progress for this course
+          const updatedQuery = `
+            SELECT 
+              COUNT(*) as total_weeks,
+              COUNT(CASE WHEN CURRENT_DATE >= cw.start_date THEN 1 END) as weeks_passed
+            FROM course_weeks cw
+            WHERE cw.course_id = $1
+          `;
+          const weekResult = await pool.query(updatedQuery, [course.course_id]);
+          if (weekResult.rows.length > 0) {
+            course.total_weeks = weekResult.rows[0].total_weeks;
+            course.weeks_passed = weekResult.rows[0].weeks_passed;
+            course.progress = course.total_weeks > 0 
+              ? Math.round((course.weeks_passed / course.total_weeks) * 100 * 10) / 10
+              : 0;
+          }
+        } catch (weekGenError) {
+          console.error(`Error generating weeks for course ${course.course_id}:`, weekGenError);
+        }
+      }
     }
     
     res.json(result.rows);

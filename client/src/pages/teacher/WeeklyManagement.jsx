@@ -34,6 +34,13 @@ export default function WeeklyManagement({ courseId }) {
   }, [courseId]);
 
   const handleEdit = (week) => {
+    const status = getWeekStatus(week);
+    
+    if (status === 'completed') {
+      setError('Cannot edit completed weeks.');
+      return;
+    }
+    
     setEditingWeek(week.week_id);
     setEditForm({
       topic_title: week.topic_title || '',
@@ -43,8 +50,14 @@ export default function WeeklyManagement({ courseId }) {
   };
 
   const handleSave = async () => {
+    if (!editForm.topic_title.trim()) {
+      setError('Topic title is required.');
+      return;
+    }
+
     try {
       setSaving(true);
+      setError(null);
       const updatedWeek = await api(`/course-weeks/weeks/${editingWeek}`, 'PUT', editForm);
       
       setWeeks(prev => prev.map(week => 
@@ -64,25 +77,6 @@ export default function WeeklyManagement({ courseId }) {
   const handleCancel = () => {
     setEditingWeek(null);
     setEditForm({ topic_title: '', topic_description: '', learning_objectives: '' });
-  };
-
-  const generateWeeks = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      await api(`/course-weeks/course/${courseId}/generate-weeks`, 'POST');
-      
-      // Refresh weeks
-      const data = await api(`/course-weeks/course/${courseId}/weeks`);
-      setWeeks(data || []);
-    } catch (err) {
-      console.error('Failed to generate weeks:', err);
-      const errorMessage = err.message || 'Failed to generate weekly schedule.';
-      setError(`Failed to generate weeks: ${errorMessage}`);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const formatDate = (dateString) => {
@@ -129,21 +123,13 @@ export default function WeeklyManagement({ courseId }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold text-white">Weekly Schedule Management</h3>
-        {weeks.length === 0 && (
-          <button
-            onClick={generateWeeks}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
-          >
-            Generate Weekly Schedule
-          </button>
-        )}
       </div>
 
       {weeks.length === 0 ? (
         <div className="bg-gray-700 rounded-lg p-6 text-center">
-          <p className="text-gray-300 mb-2">No weekly schedule created yet.</p>
+          <p className="text-gray-300 mb-2">No weekly schedule available.</p>
           <p className="text-gray-400 text-sm">
-            Click "Generate Weekly Schedule" to create weeks based on your course start and end dates.
+            Weekly schedule has not been set up for this course yet.
           </p>
         </div>
       ) : (
@@ -218,7 +204,7 @@ export default function WeeklyManagement({ courseId }) {
                       </div>
                     )}
                     
-                    {!isEditing && (
+                    {!isEditing && status !== 'completed' && (
                       <>
                         <button
                           onClick={(e) => {
@@ -239,6 +225,18 @@ export default function WeeklyManagement({ courseId }) {
                         </div>
                       </>
                     )}
+                    
+                    {!isEditing && status === 'completed' && (
+                      <>
+                        {/* Expand/Collapse icon for completed weeks */}
+                        <div className={`
+                          transform transition-transform duration-200 text-gray-400
+                          ${isExpanded ? 'rotate-180' : ''}
+                        `}>
+                          ▼
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -248,15 +246,19 @@ export default function WeeklyManagement({ courseId }) {
                   <div className="border-t border-gray-600 p-4 space-y-4 bg-gray-800/30">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Topic Title
+                        Topic Title <span className="text-red-400">*</span>
                       </label>
                       <input
                         type="text"
                         value={editForm.topic_title}
                         onChange={(e) => setEditForm(prev => ({ ...prev, topic_title: e.target.value }))}
                         className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                        placeholder="Enter week topic..."
+                        placeholder="Enter week topic (e.g., Introduction to Variables, Data Structures)..."
+                        required
                       />
+                      {!editForm.topic_title.trim() && (
+                        <p className="text-orange-400 text-xs mt-1">Topic title is required</p>
+                      )}
                     </div>
 
                     <div>
@@ -275,14 +277,18 @@ export default function WeeklyManagement({ courseId }) {
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1">
                         Learning Objectives
+                        <span className="text-gray-500 text-xs ml-1">(Recommended)</span>
                       </label>
                       <textarea
                         value={editForm.learning_objectives}
                         onChange={(e) => setEditForm(prev => ({ ...prev, learning_objectives: e.target.value }))}
-                        rows={2}
+                        rows={3}
                         className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                        placeholder="What should students learn this week?"
+                        placeholder="What should students learn this week? (e.g., By the end of this week, students will be able to...)"
                       />
+                      <p className="text-gray-500 text-xs mt-1">
+                        💡 Tip: Start with "By the end of this week, students will be able to..."
+                      </p>
                     </div>
 
                     <div className="flex space-x-2">
@@ -303,12 +309,12 @@ export default function WeeklyManagement({ courseId }) {
                     </div>
                   </div>
                 ) : isExpanded ? (
-                  // Expanded View Mode
+                  // Read-only View Mode
                   <div className="border-t border-gray-600 p-4 space-y-4 bg-gray-800/30">
-                    {/* Topic Overview */}
+                    {/* Topic Description */}
                     <div className="bg-gray-700/50 rounded-lg p-3">
                       <h5 className="font-medium text-white mb-2 flex items-center">
-                        📚 Topic Overview
+                        📚 Topic Description
                       </h5>
                       {week.topic_title || week.topic_description ? (
                         <>
@@ -324,9 +330,34 @@ export default function WeeklyManagement({ courseId }) {
                           )}
                         </>
                       ) : (
-                        <p className="text-gray-400 text-sm italic">
-                          No topic set yet. Click "Edit" to add content.
-                        </p>
+                        <div className={`border-2 border-dashed rounded-lg p-3 ${
+                          status === 'completed' 
+                            ? 'border-gray-600 bg-gray-800/20' 
+                            : 'border-yellow-600 bg-yellow-900/10'
+                        }`}>
+                          <p className={`text-sm font-medium mb-2 ${
+                            status === 'completed' ? 'text-gray-400' : 'text-yellow-400'
+                          }`}>
+                            {status === 'completed' ? 'Topic not set' : '⚠️ Topic not set yet'}
+                          </p>
+                          <p className="text-gray-400 text-sm mb-3">
+                            {status === 'completed' 
+                              ? 'No topic was set for this week.'
+                              : 'Set a topic title and description to help students understand what they\'ll learn this week.'
+                            }
+                          </p>
+                          {status !== 'completed' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(week);
+                              }}
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm font-medium"
+                            >
+                              Set Topic Now
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
 
@@ -340,9 +371,34 @@ export default function WeeklyManagement({ courseId }) {
                           {week.learning_objectives}
                         </p>
                       ) : (
-                        <p className="text-gray-400 text-sm italic">
-                          No learning objectives set yet.
-                        </p>
+                        <div className={`border-2 border-dashed rounded-lg p-3 ${
+                          status === 'completed' 
+                            ? 'border-gray-600 bg-gray-800/20' 
+                            : 'border-orange-600 bg-orange-900/10'
+                        }`}>
+                          <p className={`text-sm font-medium mb-2 ${
+                            status === 'completed' ? 'text-gray-400' : 'text-orange-400'
+                          }`}>
+                            {status === 'completed' ? 'No learning objectives set' : '🎯 No learning objectives set'}
+                          </p>
+                          <p className="text-gray-400 text-sm mb-3">
+                            {status === 'completed' 
+                              ? 'No learning objectives were set for this week.'
+                              : 'Define clear learning objectives to help students understand what they should achieve this week.'
+                            }
+                          </p>
+                          {status !== 'completed' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(week);
+                              }}
+                              className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-sm font-medium"
+                            >
+                              Add Objectives
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
 
@@ -397,13 +453,8 @@ export default function WeeklyManagement({ courseId }) {
                                     }
                                   </p>
                                 )}
-                                <div className="flex justify-between items-center text-xs">
-                                  <span className="text-gray-400">
-                                    Assignment #{assignment.assignment_id}
-                                  </span>
-                                  <button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">
-                                    Manage Assignment
-                                  </button>
+                                <div className="text-xs text-gray-400">
+                                  Assignment #{assignment.assignment_id}
                                 </div>
                               </div>
                             );
@@ -414,9 +465,6 @@ export default function WeeklyManagement({ courseId }) {
                           <p className="text-gray-400 text-sm">
                             📝 No assignments assigned to this week
                           </p>
-                          <button className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">
-                            Create Assignment
-                          </button>
                         </div>
                       )}
                     </div>
