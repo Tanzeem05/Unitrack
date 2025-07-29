@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../utils/api';
 import Modal from './components/Modal';
 
 // Dashboard Overview Component
 const DashboardOverview = () => {
+  const navigate = useNavigate();
   const [showUserModal, setShowUserModal] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
@@ -378,9 +380,16 @@ const DashboardOverview = () => {
           <div 
             key={index} 
             className={`bg-gray-800 rounded-lg p-6 border border-gray-700 ${
-              stat.title === 'Total Enrollments' ? 'cursor-pointer hover:bg-gray-750' : ''
+              stat.title === 'Total Enrollments' ? 'cursor-pointer hover:bg-gray-750' : 
+              stat.title === 'Total Users' ? 'cursor-pointer hover:bg-gray-750' : 
+              stat.title === 'Active Courses' ? 'cursor-pointer hover:bg-gray-750' : ''
             }`}
-            onClick={stat.title === 'Total Enrollments' ? () => setShowEnrollmentDetails(true) : undefined}
+            onClick={
+              stat.title === 'Total Enrollments' ? () => setShowEnrollmentDetails(true) :
+              stat.title === 'Total Users' ? () => navigate('/admin/users') : 
+              stat.title === 'Active Courses' ? () => navigate('/admin/courses') :
+              undefined
+            }
           >
             <div className="flex items-center justify-between">
               <div>
@@ -394,6 +403,12 @@ const DashboardOverview = () => {
                 {stat.title === 'Total Enrollments' && (
                   <p className="text-xs text-blue-400 mt-1">Click to view details</p>
                 )}
+                {stat.title === 'Total Users' && (
+                  <p className="text-xs text-blue-400 mt-1">Click to manage users</p>
+                )}
+                {stat.title === 'Active Courses' && (
+                  <p className="text-xs text-blue-400 mt-1">Click to manage courses</p>
+                )}
               </div>
               <div className={`w-12 h-12 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center`}>
                 <span className="text-white text-xl">📊</span>
@@ -406,7 +421,7 @@ const DashboardOverview = () => {
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
-        <div className="lg:col-span-1 bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <div className="lg:col-span-2 bg-gray-800 rounded-lg p-6 border border-gray-700">
           <h3 className="text-xl font-bold text-white mb-6">Quick Actions</h3>
           <div className="grid grid-cols-2 grid-rows-2 gap-4">
             <button 
@@ -441,7 +456,7 @@ const DashboardOverview = () => {
         </div>
 
         {/* Recent Activity */}
-        <div className="lg:col-span-2 bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <div className="lg:col-span-1 bg-gray-800 rounded-lg p-6 border border-gray-700">
           <h3 className="text-xl font-bold text-white mb-6">Recent Activity</h3>
           <div className="space-y-4">
             {activities.map((activity, index) => (

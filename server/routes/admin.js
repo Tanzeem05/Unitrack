@@ -618,8 +618,9 @@ router.get('/users', async (req, res) => {
         const offset = (page - 1) * limit;
         const search = req.query.search || '';
         const userType = req.query.userType || '';
+        const adminLevel = req.query.adminLevel || '';
 
-        console.log('Pagination params:', { page, limit, offset, search, userType });
+        console.log('Pagination params:', { page, limit, offset, search, userType, adminLevel });
 
         // Build WHERE clause for search and filtering
         let whereClause = '';
@@ -644,6 +645,16 @@ router.get('/users', async (req, res) => {
                 whereClause += `WHERE u.user_type = $${paramIndex}`;
             }
             queryParams.push(userType);
+            paramIndex++;
+        }
+
+        if (adminLevel && userType === 'admin') {
+            if (whereClause) {
+                whereClause += ` AND u.admin_level = $${paramIndex}`;
+            } else {
+                whereClause += `WHERE u.admin_level = $${paramIndex}`;
+            }
+            queryParams.push(adminLevel);
             paramIndex++;
         }
 
@@ -1306,6 +1317,323 @@ router.get('/departments', async (req, res) => {
     } catch (err) {
         console.error('Error fetching departments:', err);
         res.status(500).json({ error: 'Failed to fetch departments' });
+    }
+});
+
+// Get unique admin levels for filtering (Admin only)
+router.get('/admin-levels', async (req, res) => {
+    try {
+        const query = `
+            SELECT DISTINCT admin_level
+            FROM users
+            WHERE user_type = 'admin' AND admin_level IS NOT NULL
+            ORDER BY admin_level
+        `;
+
+        const result = await pool.query(query);
+        res.json(result.rows.map(row => row.admin_level));
+    } catch (err) {
+        console.error('Error fetching admin levels:', err);
+        res.status(500).json({ error: 'Failed to fetch admin levels' });
+    }
+});
+
+// ===================== USER DETAILS ROUTES =====================
+
+// Get student enrollment details (Admin only)
+router.get('/users/:id/enrollments', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // First verify the user exists and is a student
+        const userCheck = await pool.query(
+            'SELECT user_id, user_type, first_name, last_name FROM users WHERE user_id = $1',
+            [id]
+        );
+        
+        if (userCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        if (userCheck.rows[0].user_type !== 'student') {
+            return res.status(400).json({ error: 'User is not a student' });
+        }
+        
+        const query = `
+            SELECT 
+                se.enrollment_id,
+                se.enrollment_date,
+                se.status as enrollment_status,
+                c.course_id,
+                c.course_code,
+                c.course_name,
+                c.description as course_description,
+                c.start_date,
+                c.end_date,
+                d.name as department_name,
+                CASE 
+                    WHEN c.end_date < CURRENT_DATE THEN 'Completed'
+                    WHEN c.start_date > CURRENT_DATE THEN 'Upcoming'
+                    ELSE 'Active'
+                END as course_status,
+                -- Get progress information if available
+                COALESCE(
+                    (SELECT COUNT(*) FROM assignments a WHERE a.course_id = c.course_id), 0
+                ) as total_assignments,
+                COALESCE(
+                    (SELECT COUNT(*) 
+                     FROM assignment_submissions asub 
+                     JOIN assignments a ON asub.assignment_id = a.assignment_id 
+                     WHERE a.course_id = c.course_id AND asub.student_id = se.student_id), 0
+                ) as submitted_assignments
+            FROM student_enrollment se
+            JOIN courses c ON se.course_id = c.course_id
+            LEFT JOIN department d ON c.department_id = d.department_id
+            WHERE se.student_id = $1
+            ORDER BY se.enrollment_date DESC, c.start_date DESC
+        `;
+
+        const result = await pool.query(query, [id]);
+        
+        const userInfo = userCheck.rows[0];
+        
+        res.json({
+            student: {
+                user_id: userInfo.user_id,
+                name: `${userInfo.first_name} ${userInfo.last_name}`,
+                user_type: userInfo.user_type
+            },
+            enrollments: result.rows,
+            summary: {
+                total_courses: result.rows.length,
+                active_courses: result.rows.filter(row => row.course_status === 'Active').length,
+                completed_courses: result.rows.filter(row => row.course_status === 'Completed').length,
+                upcoming_courses: result.rows.filter(row => row.course_status === 'Upcoming').length
+            }
+        });
+        
+    } catch (err) {
+        console.error('Error fetching student enrollments:', err);
+        res.status(500).json({ error: 'Failed to fetch student enrollments', details: err.message });
+    }
+});
+
+// Get teacher information and courses (Admin only)
+router.get('/users/:id/teacher-info', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // First verify the user exists and is a teacher
+        const userCheck = await pool.query(
+            'SELECT user_id, user_type, first_name, last_name, specialization FROM users WHERE user_id = $1',
+            [id]
+        );
+        
+        if (userCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        if (userCheck.rows[0].user_type !== 'teacher') {
+            return res.status(400).json({ error: 'User is not a teacher' });
+        }
+        
+        // Get courses taught by this teacher
+        const coursesQuery = `
+            SELECT 
+                c.course_id,
+                c.course_code,
+                c.course_name,
+                c.description as course_description,
+                c.start_date,
+                c.end_date,
+                CASE 
+                    WHEN c.end_date < CURRENT_DATE THEN 'Completed'
+                    WHEN c.start_date > CURRENT_DATE THEN 'Upcoming'
+                    ELSE 'Active'
+                END as course_status,
+                COUNT(se.enrollment_id) as enrolled_students,
+                ct.assigned_date
+            FROM course_teachers ct
+            JOIN courses c ON ct.course_id = c.course_id
+            LEFT JOIN student_enrollment se ON c.course_id = se.course_id
+            WHERE ct.teacher_id = $1
+            GROUP BY c.course_id, c.course_code, c.course_name, c.description, 
+                     c.start_date, c.end_date, ct.assigned_date
+            ORDER BY ct.assigned_date DESC, c.start_date DESC
+        `;
+
+        const coursesResult = await pool.query(coursesQuery, [id]);
+        
+        // Get assignment statistics for this teacher
+        const assignmentsQuery = `
+            SELECT 
+                COUNT(*) as total_assignments,
+                COUNT(CASE WHEN a.due_date >= CURRENT_DATE THEN 1 END) as active_assignments,
+                COUNT(CASE WHEN a.due_date < CURRENT_DATE THEN 1 END) as past_assignments
+            FROM assignments a
+            JOIN courses c ON a.course_id = c.course_id
+            JOIN course_teachers ct ON c.course_id = ct.course_id
+            WHERE ct.teacher_id = $1
+        `;
+
+        const assignmentsResult = await pool.query(assignmentsQuery, [id]);
+        
+        const userInfo = userCheck.rows[0];
+        
+        res.json({
+            teacher: {
+                user_id: userInfo.user_id,
+                name: `${userInfo.first_name} ${userInfo.last_name}`,
+                user_type: userInfo.user_type,
+                specialization: userInfo.specialization
+            },
+            courses: coursesResult.rows,
+            assignments: assignmentsResult.rows[0] || {
+                total_assignments: 0,
+                active_assignments: 0,
+                past_assignments: 0
+            },
+            summary: {
+                total_courses: coursesResult.rows.length,
+                active_courses: coursesResult.rows.filter(row => row.course_status === 'Active').length,
+                completed_courses: coursesResult.rows.filter(row => row.course_status === 'Completed').length,
+                upcoming_courses: coursesResult.rows.filter(row => row.course_status === 'Upcoming').length,
+                total_students: coursesResult.rows.reduce((sum, course) => sum + parseInt(course.enrolled_students), 0)
+            }
+        });
+        
+    } catch (err) {
+        console.error('Error fetching teacher information:', err);
+        res.status(500).json({ error: 'Failed to fetch teacher information', details: err.message });
+    }
+});
+
+// Get admin information and recent activities (Admin only)
+router.get('/users/:id/admin-info', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // First verify the user exists and is an admin
+        const userCheck = await pool.query(
+            'SELECT user_id, user_type, first_name, last_name, admin_level, created_at FROM users WHERE user_id = $1',
+            [id]
+        );
+        
+        if (userCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        if (userCheck.rows[0].user_type !== 'admin') {
+            return res.status(400).json({ error: 'User is not an admin' });
+        }
+        
+        // Get recent admin activities/logs
+        const logsQuery = `
+            SELECT 
+                al.log_id,
+                al.action_type,
+                al.description,
+                al.affected_user_id,
+                al.affected_course_id,
+                al.created_at,
+                CASE 
+                    WHEN al.affected_user_id IS NOT NULL THEN 'User Management'
+                    WHEN al.affected_course_id IS NOT NULL THEN 'Course Management'
+                    ELSE 'System Administration'
+                END as category,
+                -- Get affected user details if available
+                CASE 
+                    WHEN al.affected_user_id IS NOT NULL THEN 
+                        (SELECT first_name || ' ' || last_name FROM users WHERE user_id = al.affected_user_id)
+                    ELSE NULL
+                END as affected_user_name,
+                -- Get affected course details if available
+                CASE 
+                    WHEN al.affected_course_id IS NOT NULL THEN 
+                        (SELECT course_name FROM courses WHERE course_id = al.affected_course_id)
+                    ELSE NULL
+                END as affected_course_name
+            FROM admin_logs al
+            WHERE al.admin_id = (SELECT admin_id FROM admins WHERE user_id = $1 LIMIT 1)
+            ORDER BY al.created_at DESC
+            LIMIT 20
+        `;
+
+        const logsResult = await pool.query(logsQuery, [id]);
+        
+        // Get admin statistics
+        const statsQuery = `
+            SELECT 
+                COUNT(*) as total_actions,
+                COUNT(CASE WHEN al.created_at >= NOW() - INTERVAL '30 days' THEN 1 END) as actions_last_30_days,
+                COUNT(CASE WHEN al.created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as actions_last_7_days,
+                COUNT(CASE WHEN al.action_type = 'CREATE' THEN 1 END) as create_actions,
+                COUNT(CASE WHEN al.action_type = 'UPDATE' THEN 1 END) as update_actions,
+                COUNT(CASE WHEN al.action_type = 'DELETE' THEN 1 END) as delete_actions
+            FROM admin_logs al
+            WHERE al.admin_id = (SELECT admin_id FROM admins WHERE user_id = $1 LIMIT 1)
+        `;
+
+        const statsResult = await pool.query(statsQuery, [id]);
+        
+        // Get system permissions/capabilities based on admin level
+        const getPermissions = (adminLevel) => {
+            const permissions = {
+                'super_admin': [
+                    'User Management',
+                    'Course Management', 
+                    'System Configuration',
+                    'Global Announcements',
+                    'Reports & Analytics',
+                    'Admin Management'
+                ],
+                'admin': [
+                    'User Management',
+                    'Course Management',
+                    'Global Announcements',
+                    'Reports & Analytics'
+                ],
+                'moderator': [
+                    'Course Management',
+                    'Global Announcements'
+                ]
+            };
+            return permissions[adminLevel] || ['Basic Admin Access'];
+        };
+        
+        const userInfo = userCheck.rows[0];
+        
+        res.json({
+            admin: {
+                user_id: userInfo.user_id,
+                name: `${userInfo.first_name} ${userInfo.last_name}`,
+                user_type: userInfo.user_type,
+                admin_level: userInfo.admin_level,
+                account_created: userInfo.created_at,
+                permissions: getPermissions(userInfo.admin_level)
+            },
+            recent_activities: logsResult.rows,
+            statistics: statsResult.rows[0] || {
+                total_actions: 0,
+                actions_last_30_days: 0,
+                actions_last_7_days: 0,
+                create_actions: 0,
+                update_actions: 0,
+                delete_actions: 0
+            },
+            summary: {
+                activity_categories: {
+                    user_management: logsResult.rows.filter(log => log.category === 'User Management').length,
+                    course_management: logsResult.rows.filter(log => log.category === 'Course Management').length,
+                    system_administration: logsResult.rows.filter(log => log.category === 'System Administration').length
+                },
+                recent_activity_count: logsResult.rows.length
+            }
+        });
+        
+    } catch (err) {
+        console.error('Error fetching admin information:', err);
+        res.status(500).json({ error: 'Failed to fetch admin information', details: err.message });
     }
 });
 
