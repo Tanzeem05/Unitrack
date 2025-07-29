@@ -10,10 +10,14 @@ const UserManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [userDetails, setUserDetails] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [adminLevelFilter, setAdminLevelFilter] = useState('all');
+  const [adminLevels, setAdminLevels] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -41,6 +45,7 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers();
     fetchDepartments();
+    fetchAdminLevels();
   }, []);
 
   const fetchDepartments = async () => {
@@ -52,6 +57,56 @@ const UserManagement = () => {
       setDepartments(data);
     } catch (err) {
       console.error('Error fetching departments:', err);
+    }
+  };
+
+  const fetchAdminLevels = async () => {
+    try {
+      console.log('Fetching admin levels...');
+      const data = await api('/admin/admin-levels');
+      console.log('Admin levels fetched:', data);
+      setAdminLevels(data);
+    } catch (err) {
+      console.error('Error fetching admin levels:', err);
+    }
+  };
+
+  const fetchStudentDetails = async (userId) => {
+    try {
+      const enrollments = await api(`/admin/users/${userId}/enrollments`);
+      return {
+        type: 'student',
+        enrollments: enrollments
+      };
+    } catch (err) {
+      console.error('Error fetching student details:', err);
+      return { type: 'student', enrollments: [], error: 'Failed to load enrollments' };
+    }
+  };
+
+  const fetchTeacherDetails = async (userId) => {
+    try {
+      const teacherData = await api(`/admin/users/${userId}/teacher-info`);
+      return {
+        type: 'teacher',
+        ...teacherData
+      };
+    } catch (err) {
+      console.error('Error fetching teacher details:', err);
+      return { type: 'teacher', error: 'Failed to load teacher information' };
+    }
+  };
+
+  const fetchAdminDetails = async (userId) => {
+    try {
+      const adminData = await api(`/admin/users/${userId}/admin-info`);
+      return {
+        type: 'admin',
+        ...adminData
+      };
+    } catch (err) {
+      console.error('Error fetching admin details:', err);
+      return { type: 'admin', error: 'Failed to load admin information' };
     }
   };
 
@@ -75,6 +130,10 @@ const UserManagement = () => {
       
       if (roleFilter && roleFilter !== 'all') {
         params.append('userType', roleFilter);
+      }
+      
+      if (adminLevelFilter && adminLevelFilter !== 'all' && roleFilter === 'admin') {
+        params.append('adminLevel', adminLevelFilter);
       }
       
       const data = await api(`/admin/users?${params.toString()}`);
@@ -314,6 +373,14 @@ const UserManagement = () => {
 
   const handleRoleFilterChange = (e) => {
     setRoleFilter(e.target.value);
+    // Reset admin level filter when role changes
+    setAdminLevelFilter('all');
+    // Reset to first page when filtering
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleAdminLevelFilterChange = (e) => {
+    setAdminLevelFilter(e.target.value);
     // Reset to first page when filtering
     setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
@@ -325,7 +392,7 @@ const UserManagement = () => {
     }, 300); // Debounce search
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, roleFilter]);
+  }, [searchTerm, roleFilter, adminLevelFilter]);
 
   const openEditModal = (user) => {
     setSelectedUser(user);
@@ -350,6 +417,30 @@ const UserManagement = () => {
     setShowDeleteModal(true);
   };
 
+  const handleRowClick = async (user) => {
+    setSelectedUser(user);
+    setUserDetails(null); // Reset details
+    setShowUserDetailsModal(true);
+
+    // Fetch details based on user type
+    let details = null;
+    switch (user.role) {
+      case 'student':
+        details = await fetchStudentDetails(user.user_id);
+        break;
+      case 'teacher':
+        details = await fetchTeacherDetails(user.user_id);
+        break;
+      case 'admin':
+        details = await fetchAdminDetails(user.user_id);
+        break;
+      default:
+        details = { type: 'unknown', error: 'Unknown user type' };
+    }
+    
+    setUserDetails(details);
+  };
+
   // Since filtering is now done on the backend, we just use the users array directly
   const displayedUsers = users || [];
 
@@ -367,6 +458,15 @@ const UserManagement = () => {
       case 'active': return 'bg-green-600 text-white border border-green-500';
       case 'inactive': return 'bg-yellow-600 text-white border border-yellow-500';
       case 'suspended': return 'bg-red-600 text-white border border-red-500';
+      default: return 'bg-gray-600 text-white border border-gray-500';
+    }
+  };
+
+  const getAdminLevelColor = (level) => {
+    switch (level?.toLowerCase()) {
+      case 'super': return 'bg-purple-600 text-white border border-purple-500';
+      case 'admin': return 'bg-blue-600 text-white border border-blue-500';
+      case 'moderator': return 'bg-orange-600 text-white border border-orange-500';
       default: return 'bg-gray-600 text-white border border-gray-500';
     }
   };
@@ -423,19 +523,23 @@ const UserManagement = () => {
               <option value="student">Student</option>
             </select>
           </div>
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">Filter by Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="suspended">Suspended</option>
-            </select>
-          </div>
+          {roleFilter === 'admin' && (
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">Filter by Admin Level</label>
+              <select
+                value={adminLevelFilter}
+                onChange={handleAdminLevelFilterChange}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+              >
+                <option value="all">All Levels</option>
+                {adminLevels.map((level) => (
+                  <option key={level} value={level}>
+                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -455,7 +559,9 @@ const UserManagement = () => {
                 <th className="text-left text-gray-300 font-medium py-3 px-4">Name</th>
                 <th className="text-left text-gray-300 font-medium py-3 px-4">Email</th>
                 <th className="text-left text-gray-300 font-medium py-3 px-4">Role</th>
-                <th className="text-left text-gray-300 font-medium py-3 px-4">Status</th>
+                <th className="text-left text-gray-300 font-medium py-3 px-4">
+                  {roleFilter === 'admin' ? 'Admin Level' : 'Status'}
+                </th>
                 <th className="text-left text-gray-300 font-medium py-3 px-4">Join Date</th>
                 <th className="text-left text-gray-300 font-medium py-3 px-4">Actions</th>
               </tr>
@@ -463,7 +569,11 @@ const UserManagement = () => {
             <tbody>
               {displayedUsers.length > 0 ? (
                 displayedUsers.map((user, index) => (
-                  <tr key={user.user_id} className="border-b border-gray-700">
+                  <tr 
+                    key={user.user_id} 
+                    className="border-b border-gray-700 hover:bg-gray-700/50 cursor-pointer transition-colors"
+                    onClick={() => handleRowClick(user)}
+                  >
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
@@ -481,9 +591,15 @@ const UserManagement = () => {
                       </span>
                     </td>
                     <td className="py-4 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
-                        {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                      </span>
+                      {roleFilter === 'admin' && user.role === 'admin' ? (
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAdminLevelColor(user.admin_level)}`}>
+                          {user.admin_level ? user.admin_level.charAt(0).toUpperCase() + user.admin_level.slice(1) : 'N/A'}
+                        </span>
+                      ) : (
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                          {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                        </span>
+                      )}
                     </td>
                     <td className="py-4 px-4">
                       <span className="text-gray-300">
@@ -493,13 +609,19 @@ const UserManagement = () => {
                     <td className="py-4 px-4">
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => openEditModal(user)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditModal(user);
+                          }}
                           className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => openDeleteModal(user)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDeleteModal(user);
+                          }}
                           className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
                         >
                           Delete
@@ -1023,6 +1145,201 @@ const UserManagement = () => {
               className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
             >
               Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* User Details Modal */}
+      <Modal show={showUserDetailsModal} onClose={() => setShowUserDetailsModal(false)} title={`${selectedUser?.name} Details`} size="lg">
+        <div className="space-y-4">
+          {selectedUser && (
+            <div className="bg-gray-700 rounded-lg p-4">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                  {selectedUser.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-white text-xl font-semibold">{selectedUser.name}</h3>
+                  <p className="text-gray-300">{selectedUser.email}</p>
+                  <span className={`px-3 py-1 rounded-lg text-sm font-semibold ${getRoleColor(selectedUser.role)}`}>
+                    {selectedUser.role.charAt(0).toUpperCase() + selectedUser.role.slice(1)}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-400">Username:</span>
+                  <p className="text-white">{selectedUser.username}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400">Join Date:</span>
+                  <p className="text-white">{new Date(selectedUser.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {userDetails === null ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <span className="ml-3 text-gray-300">Loading details...</span>
+            </div>
+          ) : userDetails.error ? (
+            <div className="bg-red-900/20 border border-red-500 rounded-lg p-4">
+              <p className="text-red-400">{userDetails.error}</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Student Details */}
+              {userDetails.type === 'student' && (
+                <div className="bg-gray-700 rounded-lg p-4">
+                  <h4 className="text-white text-lg font-semibold mb-3 flex items-center gap-2">
+                    📚 Course Enrollments
+                  </h4>
+                  {userDetails.enrollments && userDetails.enrollments.length > 0 ? (
+                    <div className="space-y-3">
+                      {userDetails.enrollments.map((enrollment, index) => (
+                        <div key={index} className="bg-gray-600 rounded p-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="text-white font-medium">{enrollment.course_name}</h5>
+                              <p className="text-gray-300 text-sm">Code: {enrollment.course_code}</p>
+                              <p className="text-gray-400 text-xs">
+                                Enrolled: {new Date(enrollment.enrollment_date).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              enrollment.status === 'active' ? 'bg-green-600 text-white' : 
+                              enrollment.status === 'completed' ? 'bg-blue-600 text-white' : 'bg-gray-600 text-white'
+                            }`}>
+                              {enrollment.status?.charAt(0).toUpperCase() + enrollment.status?.slice(1) || 'Active'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400">No course enrollments found.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Teacher Details */}
+              {userDetails.type === 'teacher' && (
+                <div className="space-y-4">
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-white text-lg font-semibold mb-3 flex items-center gap-2">
+                      👨‍🏫 Teacher Information
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-gray-400">Specialization:</span>
+                        <p className="text-white font-medium">{userDetails.specialization || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Teaching Since:</span>
+                        <p className="text-white">{userDetails.teaching_since ? new Date(userDetails.teaching_since).toLocaleDateString() : 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {userDetails.courses && userDetails.courses.length > 0 && (
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-white text-lg font-semibold mb-3 flex items-center gap-2">
+                        📖 Teaching Courses
+                      </h4>
+                      <div className="space-y-3">
+                        {userDetails.courses.map((course, index) => (
+                          <div key={index} className="bg-gray-600 rounded p-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h5 className="text-white font-medium">{course.course_name}</h5>
+                                <p className="text-gray-300 text-sm">Code: {course.course_code}</p>
+                                <p className="text-gray-400 text-xs">
+                                  Students: {course.enrollment_count || 0}
+                                </p>
+                              </div>
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                course.status === 'active' ? 'bg-green-600 text-white' : 
+                                course.status === 'completed' ? 'bg-blue-600 text-white' : 'bg-gray-600 text-white'
+                              }`}>
+                                {course.status?.charAt(0).toUpperCase() + course.status?.slice(1) || 'Active'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Admin Details */}
+              {userDetails.type === 'admin' && (
+                <div className="space-y-4">
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-white text-lg font-semibold mb-3 flex items-center gap-2">
+                      🛡️ Admin Information
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-gray-400">Admin Level:</span>
+                        <p className="text-white">
+                          <span className={`px-2 py-1 rounded text-sm font-medium ${getAdminLevelColor(userDetails.admin_level)}`}>
+                            {userDetails.admin_level?.charAt(0).toUpperCase() + userDetails.admin_level?.slice(1) || 'N/A'}
+                          </span>
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Admin Since:</span>
+                        <p className="text-white">{userDetails.admin_since ? new Date(userDetails.admin_since).toLocaleDateString() : selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {userDetails.permissions && userDetails.permissions.length > 0 && (
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-white text-lg font-semibold mb-3 flex items-center gap-2">
+                        🔐 Permissions
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {userDetails.permissions.map((permission, index) => (
+                          <span key={index} className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm">
+                            {permission}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {userDetails.recent_actions && userDetails.recent_actions.length > 0 && (
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-white text-lg font-semibold mb-3 flex items-center gap-2">
+                        📋 Recent Actions
+                      </h4>
+                      <div className="space-y-2">
+                        {userDetails.recent_actions.slice(0, 5).map((action, index) => (
+                          <div key={index} className="flex justify-between items-center text-sm">
+                            <span className="text-gray-300">{action.description}</span>
+                            <span className="text-gray-400">{new Date(action.created_at).toLocaleDateString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end mt-6">
+            <button 
+              onClick={() => setShowUserDetailsModal(false)}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+            >
+              Close
             </button>
           </div>
         </div>

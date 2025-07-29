@@ -18,6 +18,8 @@ const UserManagement = () => {
     // Search and filter states
     const [searchTerm, setSearchTerm] = useState('');
     const [userTypeFilter, setUserTypeFilter] = useState('');
+    const [adminLevelFilter, setAdminLevelFilter] = useState('');
+    const [adminLevels, setAdminLevels] = useState([]);
 
     // Modal states
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -53,10 +55,10 @@ const UserManagement = () => {
     });
 
     // Fetch users with pagination and search
-    const fetchUsers = async (page = 1, search = '', userType = '') => {
+    const fetchUsers = async (page = 1, search = '', userType = '', adminLevel = '') => {
         try {
             setLoading(true);
-            console.log('Fetching users with params:', { page, search, userType });
+            console.log('Fetching users with params:', { page, search, userType, adminLevel });
 
             const params = new URLSearchParams({
                 page: page.toString(),
@@ -69,6 +71,10 @@ const UserManagement = () => {
 
             if (userType) {
                 params.append('userType', userType);
+            }
+
+            if (adminLevel && userType === 'admin') {
+                params.append('adminLevel', adminLevel);
             }
 
             const response = await api(`/admin/users?${params.toString()}`);
@@ -117,21 +123,39 @@ const UserManagement = () => {
         }
     };
 
+    // Fetch admin levels for dropdown
+    const fetchAdminLevels = async () => {
+        try {
+            const response = await api('/admin/admin-levels');
+            setAdminLevels(response || []);
+        } catch (err) {
+            console.error('Error fetching admin levels:', err);
+            setAdminLevels([]);
+        }
+    };
+
     // Handle search
     const handleSearch = async (e) => {
         e.preventDefault();
-        await fetchUsers(1, searchTerm, userTypeFilter);
+        await fetchUsers(1, searchTerm, userTypeFilter, adminLevelFilter);
     };
 
     // Handle page change
     const handlePageChange = async (newPage) => {
-        await fetchUsers(newPage, searchTerm, userTypeFilter);
+        await fetchUsers(newPage, searchTerm, userTypeFilter, adminLevelFilter);
     };
 
     // Handle user type filter change
     const handleUserTypeFilterChange = async (newUserType) => {
         setUserTypeFilter(newUserType);
-        await fetchUsers(1, searchTerm, newUserType);
+        setAdminLevelFilter(''); // Reset admin level when user type changes
+        await fetchUsers(1, searchTerm, newUserType, '');
+    };
+
+    // Handle admin level filter change
+    const handleAdminLevelFilterChange = async (newAdminLevel) => {
+        setAdminLevelFilter(newAdminLevel);
+        await fetchUsers(1, searchTerm, userTypeFilter, newAdminLevel);
     };
 
     // Reset form
@@ -184,7 +208,7 @@ const UserManagement = () => {
 
             setIsCreateModalOpen(false);
             resetForm();
-            await fetchUsers(pagination.currentPage, searchTerm, userTypeFilter);
+            await fetchUsers(pagination.currentPage, searchTerm, userTypeFilter, adminLevelFilter);
             await fetchUserStats();
         } catch (err) {
             console.error('Error creating user:', err);
@@ -223,7 +247,7 @@ const UserManagement = () => {
             setIsEditModalOpen(false);
             setSelectedUser(null);
             resetForm();
-            await fetchUsers(pagination.currentPage, searchTerm, userTypeFilter);
+            await fetchUsers(pagination.currentPage, searchTerm, userTypeFilter, adminLevelFilter);
             await fetchUserStats();
         } catch (err) {
             console.error('Error updating user:', err);
@@ -240,7 +264,7 @@ const UserManagement = () => {
 
             setIsDeleteModalOpen(false);
             setSelectedUser(null);
-            await fetchUsers(pagination.currentPage, searchTerm, userTypeFilter);
+            await fetchUsers(pagination.currentPage, searchTerm, userTypeFilter, adminLevelFilter);
             await fetchUserStats();
         } catch (err) {
             console.error('Error deleting user:', err);
@@ -292,6 +316,7 @@ const UserManagement = () => {
         fetchUsers();
         fetchUserStats();
         fetchDepartments();
+        fetchAdminLevels();
     }, []);
 
     return (
@@ -382,6 +407,22 @@ const UserManagement = () => {
                                 <option value="admin">Admins</option>
                             </select>
                         </div>
+                        {userTypeFilter === 'admin' && (
+                            <div>
+                                <select
+                                    value={adminLevelFilter}
+                                    onChange={(e) => handleAdminLevelFilterChange(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Filter by Admin Level</option>
+                                    {adminLevels.map((level) => (
+                                        <option key={level} value={level}>
+                                            {level}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         <button
                             type="submit"
                             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
