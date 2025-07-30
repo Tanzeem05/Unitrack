@@ -153,7 +153,9 @@ router.get('/student/:assignment_id', async (req, res) => {
     const student_id = studentResult.rows[0].student_id;
 
     const query = `
-      SELECT s.*, a.title as assignment_title, a.due_date, a.max_points
+      SELECT s.submission_id, s.assignment_id, s.student_id, s.file_url, 
+             s.submitted_at, s.points_earned, s.points_earned as grade, s.feedback, 
+             s.graded_by, s.graded_at, a.title as assignment_title, a.due_date, a.max_points
       FROM assignment_submissions s
       JOIN assignments a ON s.assignment_id = a.assignment_id
       WHERE s.assignment_id = $1 AND s.student_id = $2

@@ -68,14 +68,13 @@ DECLARE
   action_desc TEXT;
   admin_id_setting TEXT;
 BEGIN
-  -- Try to get admin ID from session variable
   admin_id_setting := current_setting('app.current_admin_id', true);
 
   -- If session variable is missing or empty, use fallback admin
   IF admin_id_setting IS NULL OR admin_id_setting = '' THEN
     SELECT admin_id INTO acting_admin_id FROM admins ORDER BY admin_id LIMIT 1;
     IF acting_admin_id IS NULL THEN
-      RETURN COALESCE(NEW, OLD); -- No admin found, skip logging
+      RETURN COALESCE(NEW, OLD); 
     END IF;
 
   ELSE

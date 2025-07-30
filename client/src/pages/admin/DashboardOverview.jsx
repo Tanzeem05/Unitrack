@@ -107,7 +107,8 @@ const DashboardOverview = () => {
           time: formatRelativeTime(activity.time),
           icon: getActivityIcon(activity.type)
         }));
-        setActivities(formattedActivities);
+        // Limit to last 5 activities
+        setActivities(formattedActivities.slice(0, 4));
 
         // Fetch recent users
         const usersData = await api('/admin/recent-users');

@@ -234,6 +234,8 @@ const UserManagement = () => {
         admin_level: user.admin_level,
         specialization: user.specialization,
         batch_year: user.batch_year,
+        department_id: user.department_id,
+        department_name: user.department_name,
         // Include original fields for editing
         first_name: user.first_name,
         last_name: user.last_name,
@@ -328,6 +330,8 @@ const UserManagement = () => {
         admin_level: newUser.admin_level,
         specialization: newUser.specialization,
         batch_year: newUser.batch_year,
+        department_id: newUser.department_id,
+        department_name: newUser.department_name,
         first_name: newUser.first_name,
         last_name: newUser.last_name,
         user_type: newUser.user_type
@@ -368,6 +372,8 @@ const UserManagement = () => {
         admin_level: updatedUser.admin_level,
         specialization: updatedUser.specialization,
         batch_year: updatedUser.batch_year,
+        department_id: updatedUser.department_id,
+        department_name: updatedUser.department_name,
         first_name: updatedUser.first_name,
         last_name: updatedUser.last_name,
         user_type: updatedUser.user_type
@@ -1332,7 +1338,7 @@ const UserManagement = () => {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete User" size="sm">
+      <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete User" size="lg">
         <div className="space-y-4">
           <div className="bg-red-900/20 border border-red-500 rounded-lg p-4">
             <p className="text-red-400 text-sm">
@@ -1344,7 +1350,7 @@ const UserManagement = () => {
             <div className="bg-gray-700 rounded-lg p-3">
               <p className="text-white font-medium">{selectedUser.name}</p>
               <p className="text-gray-400 text-sm">{selectedUser.email}</p>
-              <p className="text-gray-300 text-sm">Role: <span className={`px-2 py-1 rounded text-sm font-semibold ${getRoleColor(selectedUser.role)}`}>{selectedUser.role.charAt(0).toUpperCase() + selectedUser.role.slice(1)}</span></p>
+              <p className="text-gray-300 text-sm">Role: <span className={`px-2 py-1 rounded text-sm font-semibold`}>{selectedUser.role.charAt(0).toUpperCase() + selectedUser.role.slice(1)}</span></p>
             </div>
           )}
 

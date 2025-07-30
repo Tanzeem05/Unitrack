@@ -744,7 +744,7 @@ const CourseManagement = () => {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Course" size="sm">
+      <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Course" size="lg">
         <div className="space-y-4">
           <div className="bg-red-900/20 border border-red-500 rounded-lg p-4">
             <p className="text-red-400 text-sm">

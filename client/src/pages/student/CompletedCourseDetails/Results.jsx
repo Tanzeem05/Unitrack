@@ -499,9 +499,11 @@ const Results = ({ courseCode, courseId }) => {
   }, [courseCode, courseId]);
 
   const calculateCourseStats = (assignmentsData, submissionsMap) => {
+    console.log('Calculating course stats with:', { assignmentsData, submissionsMap });
+    
     const totalAssignments = assignmentsData.length;
     const submittedAssignments = Object.values(submissionsMap).filter(sub => sub !== null).length;
-    const gradedAssignments = Object.values(submissionsMap).filter(sub => sub && sub.grade !== null).length;
+    const gradedAssignments = Object.values(submissionsMap).filter(sub => sub && sub.grade !== null && sub.grade !== undefined).length;
     
     let totalPossiblePoints = 0;
     let totalEarnedPoints = 0;
@@ -510,19 +512,42 @@ const Results = ({ courseCode, courseId }) => {
 
     assignmentsData.forEach(assignment => {
       const submission = submissionsMap[assignment.assignment_id];
-      totalPossiblePoints += assignment.max_points || 0;
+      const maxPoints = parseFloat(assignment.max_points) || 0;
+      totalPossiblePoints += maxPoints;
       
-      if (submission && submission.grade !== null) {
-        totalEarnedPoints += submission.grade;
+      console.log(`Assignment ${assignment.assignment_id}:`, {
+        title: assignment.title,
+        maxPoints,
+        submission,
+        grade: submission?.grade
+      });
+      
+      if (submission && submission.grade !== null && submission.grade !== undefined) {
+        const grade = parseFloat(submission.grade) || 0;
+        totalEarnedPoints += grade;
         // Calculate weighted score (assuming equal weight for now)
         const weight = 1;
-        totalWeightedScore += (submission.grade / (assignment.max_points || 1)) * weight;
-        totalWeight += weight;
+        if (maxPoints > 0) {
+          totalWeightedScore += (grade / maxPoints) * weight;
+          totalWeight += weight;
+        }
+        
+        console.log(`Added grade ${grade} to total (now ${totalEarnedPoints})`);
       }
     });
 
     const overallPercentage = totalPossiblePoints > 0 ? (totalEarnedPoints / totalPossiblePoints) * 100 : 0;
     const averageScore = totalWeight > 0 ? (totalWeightedScore / totalWeight) * 100 : 0;
+
+    console.log('Final stats:', {
+      totalAssignments,
+      submittedAssignments,
+      gradedAssignments,
+      totalPossiblePoints,
+      totalEarnedPoints,
+      overallPercentage,
+      averageScore
+    });
 
     setCourseStats({
       totalAssignments,
@@ -827,9 +852,10 @@ const Results = ({ courseCode, courseId }) => {
             {assignments.map((assignment) => {
               const submission = submissions[assignment.assignment_id];
               const maxPoints = assignment.max_points || 0;
-              const percentage = submission && submission.grade !== null 
-                ? (submission.grade / maxPoints) * 100 
+              const grade = submission && submission.grade !== null && submission.grade !== undefined 
+                ? parseFloat(submission.grade) || 0 
                 : 0;
+              const percentage = maxPoints > 0 ? (grade / maxPoints) * 100 : 0;
               
               return (
                 <div key={assignment.assignment_id} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
@@ -846,10 +872,10 @@ const Results = ({ courseCode, courseId }) => {
                     </div>
                     <div className="text-right">
                       {submission ? (
-                        submission.grade !== null ? (
+                        submission.grade !== null && submission.grade !== undefined ? (
                           <div>
                             <div className={`text-2xl font-bold ${getGradeColor(percentage)}`}>
-                              {submission.grade}/{maxPoints}
+                              {grade}/{maxPoints}
                             </div>
                             <div className={`text-sm ${getGradeColor(percentage)}`}>
                               {percentage.toFixed(1)}%
@@ -880,7 +906,7 @@ const Results = ({ courseCode, courseId }) => {
                         percentage >= 60 ? 'bg-orange-500' :
                         'bg-red-500'
                       }`}
-                      style={{ width: `${submission && submission.grade !== null ? percentage : 0}%` }}
+                      style={{ width: `${submission && submission.grade !== null && submission.grade !== undefined ? percentage : 0}%` }}
                     ></div>
                   </div>
 

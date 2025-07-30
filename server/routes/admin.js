@@ -149,6 +149,54 @@ router.get('/recent-activities', async (req, res) => {
         const recentGlobalAnnouncementsResult = await pool.query(recentGlobalAnnouncementsQuery);
         activities.push(...recentGlobalAnnouncementsResult.rows);
 
+        // Get recent deletion activities from admin logs
+        const recentDeletionsQuery = `
+      SELECT 
+             CASE 
+               WHEN al.action_type = 'DELETE_USER' THEN 'user_deletion'
+               WHEN al.action_type = 'DELETE_COURSE' THEN 'course_deletion'
+               ELSE 'deletion'
+             END as type,
+             CASE 
+               WHEN al.action_type = 'DELETE_USER' THEN 'User deleted'
+               WHEN al.action_type = 'DELETE_COURSE' THEN 'Course deleted'
+               ELSE 'Item deleted'
+             END as title,
+             al.description,
+             al.created_at as time
+      FROM admin_logs al
+      WHERE al.action_type IN ('DELETE_USER', 'DELETE_COURSE') 
+        AND al.created_at >= NOW() - INTERVAL '7 days'
+      ORDER BY al.created_at DESC
+      LIMIT 3
+    `;
+        const recentDeletionsResult = await pool.query(recentDeletionsQuery);
+        activities.push(...recentDeletionsResult.rows);
+
+        // Get recent update activities from admin logs
+        const recentUpdatesQuery = `
+      SELECT 
+             CASE 
+               WHEN al.action_type = 'UPDATE_USER' THEN 'user_update'
+               WHEN al.action_type = 'UPDATE_COURSE' THEN 'course_update'
+               ELSE 'update'
+             END as type,
+             CASE 
+               WHEN al.action_type = 'UPDATE_USER' THEN 'User updated'
+               WHEN al.action_type = 'UPDATE_COURSE' THEN 'Course updated'
+               ELSE 'Item updated'
+             END as title,
+             al.description,
+             al.created_at as time
+      FROM admin_logs al
+      WHERE al.action_type IN ('UPDATE_USER', 'UPDATE_COURSE') 
+        AND al.created_at >= NOW() - INTERVAL '7 days'
+      ORDER BY al.created_at DESC
+      LIMIT 2
+    `;
+        const recentUpdatesResult = await pool.query(recentUpdatesQuery);
+        activities.push(...recentUpdatesResult.rows);
+
         // Sort all activities by time and limit to 10
         activities.sort((a, b) => new Date(b.time) - new Date(a.time));
         const limitedActivities = activities.slice(0, 10);

@@ -84,7 +84,7 @@ export default function CompletedCourseDetails() {
       totalPossiblePoints += assignment.max_points || 0;
       
       if (submission && submission.grade !== null) {
-        totalEarnedPoints += submission.grade;
+        totalEarnedPoints += parseFloat(submission.grade);
       }
     });
 

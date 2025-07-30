@@ -4,3 +4,12 @@
 4.course_result
 5.student_progress
 **Assignment, submission file handling
+
+
+
+student id: 4
+ass: 18,19,20,21,22
+graded by 27
+graded at 2025-07-27 06:53:58.47015
+file url https://vcydrjueccpbyyqnndmy.supabase.co/storage/v1/object/public/resources/0cbf50bf-6497-47e6-b5fe-4a713350a93a.zip
+submitted at 2025-07-10 07:48:12.939067

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Submission Route</title>
+</head>
+<body>
+    <h1>Testing Submission Route Fix</h1>
+    <div id="result"></div>
+    
+    <script>
+        // Test function to simulate the frontend logic
+        function testCalculateCourseStats() {
+            // Mock data similar to what would come from the API
+            const assignmentsData = [
+                { assignment_id: 1, title: "Assignment 1", max_points: 100 },
+                { assignment_id: 2, title: "Assignment 2", max_points: 50 }
+            ];
+            
+            const submissionsMap = {
+                1: { grade: 85, points_earned: 85 }, // Both fields for compatibility
+                2: { grade: 40, points_earned: 40 }
+            };
+            
+            // Calculate stats using the fixed logic
+            const totalAssignments = assignmentsData.length;
+            const submittedAssignments = Object.values(submissionsMap).filter(sub => sub !== null).length;
+            const gradedAssignments = Object.values(submissionsMap).filter(sub => sub && sub.grade !== null && sub.grade !== undefined).length;
+            
+            let totalPossiblePoints = 0;
+            let totalEarnedPoints = 0;
+            let totalWeightedScore = 0;
+            let totalWeight = 0;
+
+            assignmentsData.forEach(assignment => {
+                const submission = submissionsMap[assignment.assignment_id];
+                const maxPoints = parseFloat(assignment.max_points) || 0;
+                totalPossiblePoints += maxPoints;
+                
+                if (submission && submission.grade !== null && submission.grade !== undefined) {
+                    const grade = parseFloat(submission.grade) || 0;
+                    totalEarnedPoints += grade;
+                    // Calculate weighted score
+                    const weight = 1;
+                    if (maxPoints > 0) {
+                        totalWeightedScore += (grade / maxPoints) * weight;
+                        totalWeight += weight;
+                    }
+                }
+            });
+
+            const overallPercentage = totalPossiblePoints > 0 ? (totalEarnedPoints / totalPossiblePoints) * 100 : 0;
+            const averageScore = totalWeight > 0 ? (totalWeightedScore / totalWeight) * 100 : 0;
+
+            const result = {
+                totalAssignments,
+                submittedAssignments,
+                gradedAssignments,
+                totalPossiblePoints,
+                totalEarnedPoints,
+                overallPercentage,
+                averageScore,
+                completionRate: totalAssignments > 0 ? (submittedAssignments / totalAssignments) * 100 : 0
+            };
+            
+            return result;
+        }
+        
+        // Test the function
+        const stats = testCalculateCourseStats();
+        
+        // Display results
+        document.getElementById('result').innerHTML = `
+            <h2>Test Results</h2>
+            <p><strong>Total Assignments:</strong> ${stats.totalAssignments}</p>
+            <p><strong>Submitted Assignments:</strong> ${stats.submittedAssignments}</p>
+            <p><strong>Graded Assignments:</strong> ${stats.gradedAssignments}</p>
+            <p><strong>Total Possible Points:</strong> ${stats.totalPossiblePoints}</p>
+            <p><strong>Total Earned Points:</strong> ${stats.totalEarnedPoints}</p>
+            <p><strong>Overall Percentage:</strong> ${stats.overallPercentage.toFixed(2)}%</p>
+            <p><strong>Average Score:</strong> ${stats.averageScore.toFixed(2)}%</p>
+            <p><strong>Completion Rate:</strong> ${stats.completionRate.toFixed(2)}%</p>
+            
+            <h3>Validation</h3>
+            <p><strong>Is totalEarnedPoints NaN?</strong> ${isNaN(stats.totalEarnedPoints) ? 'YES - FAILED' : 'NO - PASSED'}</p>
+            <p><strong>Expected totalEarnedPoints:</strong> 125 (85 + 40)</p>
+            <p><strong>Actual totalEarnedPoints:</strong> ${stats.totalEarnedPoints}</p>
+        `;
+    </script>
+</body>
+</html>
