@@ -10,6 +10,7 @@ const CourseManagement = () => {
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [initializing, setInitializing] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -35,10 +36,22 @@ const CourseManagement = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // Test the connection first
-    testConnection();
-    fetchCourses(1); // Always start with page 1 on initial load
-    fetchTeachers();
+    const loadInitialData = async () => {
+      try {
+        // Load all data in parallel
+        await Promise.all([
+          testConnection(),
+          fetchCourses(1),
+          fetchTeachers()
+        ]);
+      } catch (err) {
+        console.error('Error loading initial data:', err);
+      } finally {
+        setInitializing(false);
+      }
+    };
+
+    loadInitialData();
   }, []);
 
   const testConnection = async () => {
@@ -73,7 +86,9 @@ const CourseManagement = () => {
 
   const fetchCourses = async (page = 1) => {
     try {
-      setLoading(true);
+      if (!initializing) {
+        setLoading(true);
+      }
       const data = await api(`/admin/courses?page=${page}&limit=10`);
       
       console.log('API Response:', data);
@@ -124,7 +139,9 @@ const CourseManagement = () => {
       setError('Failed to load courses');
       setCourses([]); // Ensure courses is always an array even on error
     } finally {
-      setLoading(false);
+      if (!initializing) {
+        setLoading(false);
+      }
     }
   };
 
@@ -303,7 +320,7 @@ const CourseManagement = () => {
     }
   };
 
-  if (loading) {
+  if (initializing) {
     return (
       <div className="flex justify-center items-center min-h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -312,7 +329,6 @@ const CourseManagement = () => {
     );
   }
 
-  // Show course details if a course is selected
   return (
     <div className="space-y-6">
       {/* Header */}
