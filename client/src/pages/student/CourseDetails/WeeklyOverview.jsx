@@ -399,3 +399,6 @@ export default function WeeklyOverview({ courseId, courseCode }) {
     </div>
   );
 }
+
+
+

@@ -219,14 +219,7 @@ router.get('/user/:userName/current', async (req, res) => {
         c.*,
         CASE 
           WHEN u_teacher.first_name IS NOT NULL THEN CONCAT(u_teacher.first_name, ' ', u_teacher.last_name)
-          WHEN creator.first_name IS NOT NULL THEN CONCAT(creator.first_name, ' ', creator.last_name)
-          ELSE CASE 
-            WHEN c.course_code LIKE '%CSE%' THEN 'Dr. Rahman'
-            WHEN c.course_code LIKE '%EEE%' THEN 'Dr. Ahmed'
-            WHEN c.course_code LIKE '%BBA%' THEN 'Prof. Khan'
-            WHEN c.course_code LIKE '%ENG%' THEN 'Dr. Hassan'
-            ELSE 'Dr. Smith'
-          END
+          WHEN u_teacher.user_id IS NULL THEN 'Instructor TBA'
         END as instructor,
         -- Calculate progress based on days elapsed
         CASE 
