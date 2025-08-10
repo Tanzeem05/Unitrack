@@ -9,6 +9,7 @@ router.post('/register', async (req, res) => {
     const { username,
         password,
         email,
+        phone,
         first_name,
         last_name,
         user_type,
@@ -49,10 +50,10 @@ router.post('/register', async (req, res) => {
         await pool.query('BEGIN');
 
         const result = await pool.query(
-            `INSERT INTO users (username, password, email, first_name, last_name, user_type, admin_level, specialization, batch_year)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            `INSERT INTO users (username, password, email, phone, first_name, last_name, user_type, admin_level, specialization, batch_year)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *`,
-            [username, hashedPassword, email, first_name, last_name, user_type, admin_level, specialization, batch_year]
+            [username, hashedPassword, email, phone, first_name, last_name, user_type, admin_level, specialization, batch_year]
         );
 
         //commit transaction
@@ -106,6 +107,7 @@ router.put('/:id', async (req, res) => {
         username,
         password,
         email,
+        phone,
         first_name,
         last_name,
         user_type,
@@ -114,13 +116,27 @@ router.put('/:id', async (req, res) => {
         batch_year
     } = req.body;
 
-    if (!username || !email || !first_name || !last_name || !user_type) {
-        return res.status(400).json({ error: 'Missing required fields' });
+    if (!email || !first_name || !last_name) {
+        return res.status(400).json({ error: 'Email, first name, and last name are required' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Validate phone number format if provided
+    if (phone && phone.trim()) {
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        if (!phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''))) {
+            return res.status(400).json({ error: 'Invalid phone number format' });
+        }
     }
 
     // Prevent duplicate email
     const emailCheck = await pool.query(
-        'SELECT user_id FROM users WHERE email = $1 AND user_id <> $2',
+        'SELECT u.user_id FROM users u JOIN students s ON u.user_id = s.user_id WHERE u.email = $1 AND s.student_id <> $2',
         [email, id]
     );
     if (emailCheck.rows.length > 0) {
@@ -128,27 +144,37 @@ router.put('/:id', async (req, res) => {
     }
 
     try {
-        const result = await pool.query(
-            `UPDATE users 
-             SET username = $1, password = $2, email = $3, first_name = $4, 
-                 last_name = $5, user_type = $6, admin_level = $7, 
-                 specialization = $8, batch_year = $9
-             WHERE user_id = $10
-             RETURNING *`,
-            [
-                username, password, email, first_name, last_name, user_type,
-                admin_level || null,
-                specialization || null,
-                batch_year || null,
-                id
-            ]
-        );
-
-        if (result.rows.length === 0) {
+        // Check if user exists first
+        const userExists = await pool.query('SELECT u.*, s.student_id FROM users u JOIN students s ON u.user_id = s.user_id WHERE s.student_id = $1', [id]);
+        if (userExists.rows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json({ message: 'User updated', user: result.rows[0] });
+        const existingUser = userExists.rows[0];
+
+        // Get the user_id for the update
+        const userIdResult = await pool.query('SELECT u.user_id FROM users u JOIN students s ON u.user_id = s.user_id WHERE s.student_id = $1', [id]);
+        const userId = userIdResult.rows[0].user_id;
+        
+        const result = await pool.query(
+            `UPDATE users 
+             SET email = $1, phone = $2, first_name = $3, last_name = $4, updated_at = CURRENT_TIMESTAMP
+             WHERE user_id = $5
+             RETURNING *`,
+            [
+                email,
+                phone || existingUser.phone,
+                first_name,
+                last_name,
+                userId
+            ]
+        );
+
+        // Remove password from response
+        const updatedUser = result.rows[0];
+        delete updatedUser.password;
+
+        res.json({ message: 'User profile updated successfully', user: updatedUser });
     } catch (err) {
         console.error('DB error:', err);
         res.status(500).json({ error: 'Internal server error' });

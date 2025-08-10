@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api, getCurrentCourses, getCompletedCourses } from '../../utils/api';
-import { User, Mail, Phone, MapPin, Calendar, Edit2, Save, X, GraduationCap, BookOpen } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Edit2, Save, X, GraduationCap, BookOpen, Lock, Eye, EyeOff } from 'lucide-react';
 
 export default function StudentProfile() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -15,6 +15,18 @@ export default function StudentProfile() {
     completed_courses: 0,
     credits_earned: null
   });
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -24,16 +36,29 @@ export default function StudentProfile() {
     try {
       setLoading(true);
       
-      // Fetch course stats first
-      let stats = { current_courses: 0, completed_courses: 0, credits_earned: null };
+      // Fetch fresh user data from the server to ensure we have the latest information
+      let currentUser = user;
       if (user?.username) {
         try {
+          const freshUserData = await api(`/users/username/${user.username}`);
+          currentUser = freshUserData;
+        } catch (error) {
+          console.error('Error fetching fresh user data:', error);
+          // Fall back to context user data if API call fails
+          currentUser = user;
+        }
+      }
+      
+      // Fetch course stats
+      let stats = { current_courses: 0, completed_courses: 0, credits_earned: null };
+      if (currentUser?.username) {
+        try {
           const [currentCoursesData, completedCoursesData] = await Promise.all([
-            getCurrentCourses(user.username).catch((error) => {
+            getCurrentCourses(currentUser.username).catch((error) => {
               if (error.message.includes('No current courses found')) return [];
               throw error;
             }),
-            getCompletedCourses(user.username).catch((error) => {
+            getCompletedCourses(currentUser.username).catch((error) => {
               if (error.message.includes('No past courses found')) return [];
               throw error;
             })
@@ -50,22 +75,21 @@ export default function StudentProfile() {
         }
       }
       
-      // For now, we'll use the user data from context
-      // In a real app, you'd fetch from /api/students/:id
+      // Build profile data using fresh user data
       const profileData = {
-        student_id: user?.student_id || user?.user_id,
-        name: user?.first_name && user?.last_name 
-          ? `${user.first_name} ${user.last_name}` 
-          : user?.username || 'User',
-        email: user?.email || null,
-        phone: null, // Not in database
+        student_id: currentUser?.student_id || currentUser?.user_id,
+        name: currentUser?.first_name && currentUser?.last_name 
+          ? `${currentUser.first_name} ${currentUser.last_name}` 
+          : currentUser?.username || 'User',
+        email: currentUser?.email || null,
+        phone: currentUser?.phone || null, // Now fetched fresh from database
         major: null, // Not in database
         year: null, // Not in database - batch_year exists but different format
-        batch_year: user?.batch_year || null, // From Students table
+        batch_year: currentUser?.batch_year || null, // From Students table
         gpa: null, // Not in database
         address: null, // Not in database
         bio: null, // Not in database
-        enrolled_date: user?.created_at || null, // From Users table
+        enrolled_date: currentUser?.created_at || null, // From Users table
         current_courses: stats.current_courses, // From API
         completed_courses: stats.completed_courses, // From API
         credits_earned: null // Not in database - would need to be calculated
@@ -91,12 +115,53 @@ export default function StudentProfile() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      // In a real app, you'd call: await api(`/students/${profile.student_id}`, 'PUT', formData);
+      
+      // Validate phone number format if provided
+      if (formData.phone && formData.phone.trim()) {
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        if (!phoneRegex.test(formData.phone.replace(/[\s\-\(\)]/g, ''))) {
+          alert('Please enter a valid phone number');
+          return;
+        }
+      }
+
+      // Validate email format
+      if (formData.email && formData.email.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+          alert('Please enter a valid email address');
+          return;
+        }
+      }
+      
+      // Make API call to update profile
+      const updatedUserResponse = await api(`/users/${profile.student_id}`, 'PUT', {
+        email: formData.email,
+        phone: formData.phone,
+        first_name: formData.name ? formData.name.split(' ')[0] : '',
+        last_name: formData.name ? formData.name.split(' ').slice(1).join(' ') : ''
+      });
+      
+      // Update the profile state
       setProfile(formData);
+      
+      // Update the user context with fresh data to keep it in sync
+      if (updatedUserResponse.user) {
+        const updatedUser = {
+          ...user,
+          email: updatedUserResponse.user.email,
+          phone: updatedUserResponse.user.phone,
+          first_name: updatedUserResponse.user.first_name,
+          last_name: updatedUserResponse.user.last_name
+        };
+        setUser(updatedUser);
+      }
+      
       setEditing(false);
+      alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile. Please try again.');
+      alert(error.message || 'Failed to update profile. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -108,6 +173,72 @@ export default function StudentProfile() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('New password and confirm password do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      alert('Password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      
+      // Call API to change password
+      await api('/auth/change-password', 'POST', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+
+      alert('Password changed successfully!');
+      setShowPasswordModal(false);
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (error) {
+      console.error('Error changing password:', error);
+      alert(error.message || 'Failed to change password. Please try again.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleCancelPasswordChange = () => {
+    setShowPasswordModal(false);
+    setPasswordData({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setShowPasswords({
+      current: false,
+      new: false,
+      confirm: false
+    });
   };
 
   if (loading) {
@@ -124,34 +255,45 @@ export default function StudentProfile() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold text-white">My Profile</h2>
-        {!editing ? (
-          <button
-            onClick={handleEdit}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            <Edit2 className="w-4 h-4" />
-            Edit Profile
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white rounded-lg transition-colors"
-            >
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-            <button
-              onClick={handleCancel}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-            >
-              <X className="w-4 h-4" />
-              Cancel
-            </button>
-          </div>
-        )}
+        <div className="flex gap-3">
+          {!editing ? (
+            <>
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+              >
+                <Lock className="w-4 h-4" />
+                Change Password
+              </button>
+              <button
+                onClick={handleEdit}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit Profile
+              </button>
+            </>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white rounded-lg transition-colors"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Profile Card */}
@@ -222,8 +364,9 @@ export default function StudentProfile() {
                     <input
                       type="email"
                       name="email"
-                      value={formData.email}
+                      value={formData.email || ''}
                       onChange={handleInputChange}
+                      placeholder="Enter email address"
                       className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   ) : (
@@ -240,8 +383,9 @@ export default function StudentProfile() {
                     <input
                       type="tel"
                       name="phone"
-                      value={formData.phone}
+                      value={formData.phone || ''}
                       onChange={handleInputChange}
+                      placeholder="Enter phone number"
                       className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   ) : (
@@ -373,6 +517,115 @@ export default function StudentProfile() {
           </div>
         </div>
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold text-white">Change Password</h3>
+              <button
+                onClick={handleCancelPasswordChange}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              {/* Current Password */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Current Password</label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.current ? "text" : "password"}
+                    name="currentPassword"
+                    value={passwordData.currentPassword}
+                    onChange={handlePasswordChange}
+                    required
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter current password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('current')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.new ? "text" : "password"}
+                    name="newPassword"
+                    value={passwordData.newPassword}
+                    onChange={handlePasswordChange}
+                    required
+                    minLength="6"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('new')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Password must be at least 6 characters long</p>
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.confirm ? "text" : "password"}
+                    name="confirmPassword"
+                    value={passwordData.confirmPassword}
+                    onChange={handlePasswordChange}
+                    required
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Confirm new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('confirm')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white py-2 px-4 rounded-lg transition-colors"
+                >
+                  {changingPassword ? 'Changing...' : 'Change Password'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelPasswordChange}
+                  disabled={changingPassword}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
